@@ -1,6 +1,8 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { CDPReactProvider, type Config, type Theme } from "@coinbase/cdp-react";
+import { CDPHooksProvider } from "@coinbase/cdp-hooks";
+import Navigation from "@/components/Navigation";
 
 const config: Config = {
   projectId: "91f1f5ba-475e-4652-83a5-81f337f6d802",
@@ -39,8 +41,11 @@ const theme: Partial<Theme> = {
 
 export default function App({ Component, pageProps }: AppProps) {
   return (
-    <CDPReactProvider config={config} theme={theme}>
-      <Component {...pageProps} />
-    </CDPReactProvider>
+    <CDPHooksProvider config={config}>
+      <CDPReactProvider config={config} theme={theme}>
+        <Navigation />
+        <Component {...pageProps} />
+      </CDPReactProvider>
+    </CDPHooksProvider>
   );
 }
