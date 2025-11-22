@@ -35,6 +35,8 @@ export async function makePaidRequest(
   options?: RequestInit
 ): Promise<Response> {
   try {
+    console.log("makePaidRequest: Starting request to", url);
+    
     const response = await fetchWithPayment(url, {
       ...options,
       headers: {
@@ -43,6 +45,24 @@ export async function makePaidRequest(
       },
     });
 
+    console.log("makePaidRequest: Response received", {
+      status: response.status,
+      ok: response.ok,
+      url: response.url,
+    });
+    
+    // Log response headers for debugging
+    const responseHeaders = Object.fromEntries(response.headers.entries());
+    console.log("Response headers:", responseHeaders);
+    console.log("x-payment-response header value:", response.headers.get("x-payment-response"));
+
+    // Note: x402-fetch should automatically handle 402 responses by:
+    // 1. Detecting the 402 response
+    // 2. Processing the payment requirements
+    // 3. Making the payment
+    // 4. Retrying the request with the payment header
+    // If we get a 402 back, it means the payment flow failed or was rejected
+    
     if (!response.ok && response.status !== 402) {
       throw new Error(`Request failed with status ${response.status}`);
     }

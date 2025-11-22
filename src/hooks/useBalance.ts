@@ -1,92 +1,98 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
-import { createPublicClient, http, formatUnits } from "viem";
+import { createPublicClient, http, formatUnits, formatEther } from "viem";
 import { baseSepolia } from "viem/chains";
 
 /**
- * Hook to fetch and display USDC balance for the connected wallet
+ * Hook to fetch and display both USDC and ETH balances for the connected wallet on Base Sepolia
+ * USDC contract address on Base Sepolia: 0x036CbD53842c5426634e7929541eC2318f3dCF7e
  */
+const USDC_CONTRACT_ADDRESS = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as const;
+const USDC_DECIMALS = 6; // USDC has 6 decimals
+
+// ERC-20 balanceOf function ABI
+const ERC20_ABI = [
+  {
+    inputs: [{ name: "account", type: "address" }],
+    name: "balanceOf",
+    outputs: [{ name: "", type: "uint256" }],
+    stateMutability: "view",
+    type: "function",
+  },
+] as const;
+
 export function useBalance() {
   const { isSignedIn } = useIsSignedIn();
   const { evmAddress } = useEvmAddress();
-  const [balance, setBalance] = useState<string | null>(null);
+  const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
+  const [ethBalance, setEthBalance] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const fetchBalances = useCallback(async () => {
     if (!evmAddress || !isSignedIn) {
-      setBalance(null);
+      setUsdcBalance(null);
+      setEthBalance(null);
       setError(null);
       return;
     }
 
-    const fetchBalance = async () => {
-      setIsLoading(true);
-      setError(null);
-      try {
-        // USDC token address on Base Sepolia
-        const usdcAddress = "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as `0x${string}`;
-        
-        const publicClient = createPublicClient({
-          chain: baseSepolia,
-          transport: http(),
-        });
+    setIsLoading(true);
+    setError(null);
+    try {
+      const publicClient = createPublicClient({
+        chain: baseSepolia,
+        transport: http(),
+      });
 
-        // Get USDC balance
-        const balance = await publicClient.readContract({
-          address: usdcAddress,
-          abi: [
-            {
-              inputs: [{ name: "account", type: "address" }],
-              name: "balanceOf",
-              outputs: [{ name: "", type: "uint256" }],
-              stateMutability: "view",
-              type: "function",
-            },
-            {
-              inputs: [],
-              name: "decimals",
-              outputs: [{ name: "", type: "uint8" }],
-              stateMutability: "view",
-              type: "function",
-            },
-          ],
+      // Fetch both balances in parallel
+      const [usdcBalance, ethBalance] = await Promise.all([
+        // Get USDC token balance using ERC-20 balanceOf
+        publicClient.readContract({
+          address: USDC_CONTRACT_ADDRESS,
+          abi: ERC20_ABI,
           functionName: "balanceOf",
           args: [evmAddress as `0x${string}`],
-        });
+        }),
+        // Get native ETH balance
+        publicClient.getBalance({
+          address: evmAddress as `0x${string}`,
+        }),
+      ]);
 
-        const decimals = await publicClient.readContract({
-          address: usdcAddress,
-          abi: [
-            {
-              inputs: [],
-              name: "decimals",
-              outputs: [{ name: "", type: "uint8" }],
-              stateMutability: "view",
-              type: "function",
-            },
-          ],
-          functionName: "decimals",
-        });
+      // Format USDC balance (6 decimals for USDC)
+      const formattedUsdcBalance = formatUnits(usdcBalance, USDC_DECIMALS);
+      setUsdcBalance(formattedUsdcBalance);
 
-        const formattedBalance = formatUnits(balance as bigint, decimals);
-        setBalance(formattedBalance);
-      } catch (err) {
-        console.error("Error fetching balance:", err);
-        setError("Unable to load balance");
-        setBalance(null);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchBalance();
-    
-    // Refresh balance every 30 seconds
-    const interval = setInterval(fetchBalance, 30000);
-    return () => clearInterval(interval);
+      // Format ETH balance (18 decimals for native ETH)
+      const formattedEthBalance = formatEther(ethBalance);
+      setEthBalance(formattedEthBalance);
+    } catch (err) {
+      console.error("Error fetching balances:", err);
+      setError("Unable to load balance");
+      setUsdcBalance(null);
+      setEthBalance(null);
+    } finally {
+      setIsLoading(false);
+    }
   }, [evmAddress, isSignedIn]);
 
-  return { balance, isLoading, error, isSignedIn };
+  useEffect(() => {
+    fetchBalances();
+    
+    // Refresh balance every 30 seconds
+    const interval = setInterval(fetchBalances, 30000);
+    return () => clearInterval(interval);
+  }, [fetchBalances]);
+
+  return { 
+    usdcBalance, 
+    ethBalance,
+    balance: usdcBalance, // Keep for backward compatibility
+    isLoading, 
+    error, 
+    isSignedIn,
+    refresh: fetchBalances, // Expose refresh function for manual balance updates
+  };
 }
 
