@@ -28,6 +28,23 @@ async function generateCDPJWT(apiKeyId: string, apiKeySecret: string, requestPat
 }
 
 /**
+ * Construct the resource URL for x402 payments
+ * This must be consistent between the 402 response and verification
+ * to ensure the facilitator can match the signed requirements
+ */
+function getResourceUrl(req: NextApiRequest): string {
+  // In deployed environments, use x-forwarded-proto if available (set by Vercel, etc.)
+  // Otherwise, check if localhost for http, default to https for production
+  const protocol = req.headers['x-forwarded-proto'] || 
+    (req.headers.host?.includes('localhost') ? 'http' : 'https');
+  
+  // Use the host header, which should be set correctly in both local and deployed environments
+  const host = req.headers.host || 'localhost:3000';
+  
+  return `${protocol}://${host}/api/purchase-item`;
+}
+
+/**
  * API endpoint for purchasing game items
  * 
  * Following the x402 payment protocol sequence:
@@ -54,9 +71,7 @@ export default async function handler(
 
   // Step 1: If no payment header, return 402 Payment Required
   if (!paymentHeader) {
-    const protocol = req.headers['x-forwarded-proto'] || (req.headers.host?.includes('localhost') ? 'http' : 'https');
-    const host = req.headers.host || 'localhost:3000';
-    const resourceUrl = `${protocol}://${host}/api/purchase-item`;
+    const resourceUrl = getResourceUrl(req);
     const priceInUSDC = 0.01;
     const maxAmountRequired = Math.floor(priceInUSDC * 1_000_000).toString();
     
@@ -157,9 +172,9 @@ export default async function handler(
   // Step 3: Verify payment with facilitator
   // Use the CDP-hosted facilitator
   const TESTNET_FACILITATOR_URL = "https://api.cdp.coinbase.com/platform";
-  const protocol = req.headers['x-forwarded-proto'] || (req.headers.host?.includes('localhost') ? 'http' : 'https');
-  const host = req.headers.host || 'localhost:3000';
-  const resourceUrl = `${protocol}://${host}/api/purchase-item`;
+  // CRITICAL: Use the same resourceUrl construction as in the 402 response
+  // This ensures the facilitator can match the signed requirements
+  const resourceUrl = getResourceUrl(req);
   const priceInUSDC = 0.01;
   const maxAmountRequired = Math.floor(priceInUSDC * 1_000_000).toString();
 
@@ -175,20 +190,15 @@ export default async function handler(
   }
   
   // CRITICAL: The paymentRequirements MUST match EXACTLY what was in the original 402 response
-  // The client signs based on the original 402 response. The authorization.to field shows
-  // what address the client actually signed for, so we should use that for payTo in requirements.
-  // This ensures the signature verification will work.
+  // The facilitator extracts payment requirements from the signature (which was based on the
+  // original 402 response) and compares them to paymentRequirements. Any mismatch causes rejection.
+  // We must use the EXACT same hardcoded values from the original 402 response, not client-provided values.
   const originalPayTo = process.env.PAYMENT_RECIPIENT_ADDRESS || "0x4200000000000000000000000000000000000006";
-  
-  // Use the authorization.to address for payTo, as that's what the client signed for
-  // If the client signed with a different address (e.g., facilitator modified it),
-  // we need to use that address for signature verification to work
-  const payToForRequirements = auth?.to || originalPayTo;
   
   console.log("=== PAYTO ADDRESS SELECTION ===");
   console.log("Authorization to (what client signed for):", auth?.to);
   console.log("Original payTo from env/default:", originalPayTo);
-  console.log("Using payTo for requirements:", payToForRequirements);
+  console.log("Using payTo for requirements (original 402 value):", originalPayTo);
 
   // Log what the client sent in paymentHeaderData
   console.log("=== PAYMENT HEADER DATA FROM CLIENT ===");
@@ -201,13 +211,14 @@ export default async function handler(
   // that the client signed. We need to reconstruct it exactly as it was in the 402 response.
   // IMPORTANT: The resource URL, description, and all fields must match EXACTLY.
   // CRITICAL: The key order must also match the original 402 response, as it affects signature verification!
+  // CRITICAL: Use hardcoded values from the original 402 response, not client-provided values!
   const paymentRequirements = {
-    scheme: paymentHeaderData.scheme,
-    network: paymentHeaderData.network,
+    scheme: "exact", // Hardcoded to match original 402 response
+    network: "base-sepolia", // Hardcoded to match original 402 response
     resource: resourceUrl, // Must match exactly what was in the 402 response
     description: `Purchase ${itemId}`, // Must match exactly what was in the 402 response
     mimeType: "application/json",
-    payTo: payToForRequirements, // Use what the client actually signed for
+    payTo: originalPayTo, // Use original payTo from 402 response
     maxAmountRequired, // Must be a string matching the 402 response
     maxTimeoutSeconds: 300,
     asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
@@ -357,7 +368,7 @@ export default async function handler(
   console.log("=== ADDITIONAL CONTEXT ===");
   console.log("Original 402 response payTo:", originalPayTo);
   console.log("Authorization to (what client signed for):", auth?.to);
-  console.log("Using payTo in requirements:", payToForRequirements);
+  console.log("Using payTo in requirements (original 402 value):", originalPayTo);
   console.log("Resource URL:", resourceUrl);
   console.log("MaxAmountRequired:", maxAmountRequired, "(type:", typeof maxAmountRequired, ")");
   console.log("Authorization value:", auth?.value, "(type:", typeof auth?.value, ")");
