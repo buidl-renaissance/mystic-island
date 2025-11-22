@@ -43,11 +43,13 @@ const theme: Partial<Theme> = {
 export default function App({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isHomePage = router.pathname === '/';
+  const isAboutPage = router.pathname === '/about';
+  const showNavigation = !isHomePage && !isAboutPage;
 
   return (
     <CDPHooksProvider config={config}>
       <CDPReactProvider config={config} theme={theme}>
-        {!isHomePage && <Navigation />}
+        {showNavigation && <Navigation />}
         <Component {...pageProps} />
       </CDPReactProvider>
     </CDPHooksProvider>

@@ -163,14 +163,14 @@ const Particle = styled.div<{ delay: number; duration: number; x: number; y: num
 
 const Section = styled.section`
   width: 100%;
-  padding: 80px 24px;
+  padding: 100px 24px;
   max-width: 1200px;
   margin: 0 auto;
   position: relative;
   z-index: 2;
 
   @media (max-width: 768px) {
-    padding: 60px 20px;
+    padding: 80px 20px;
   }
 `;
 
@@ -231,13 +231,14 @@ const SectionTitle = styled.h2`
   font-family: var(--font-cinzel), var(--font-cormorant), serif;
   font-size: 48px;
   font-weight: 600;
-  margin-bottom: 24px;
+  margin-bottom: 32px;
   color: ${colors.sunlitGold};
   text-shadow: 0 2px 15px rgba(242, 182, 99, 0.2);
   position: relative;
 
   @media (max-width: 768px) {
     font-size: 32px;
+    margin-bottom: 24px;
   }
 `;
 
@@ -258,11 +259,12 @@ const ContentGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 32px;
-  margin-top: 48px;
+  margin-top: 40px;
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
     gap: 24px;
+    margin-top: 32px;
   }
 `;
 
@@ -400,7 +402,12 @@ const IconGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 24px;
-  margin: 32px 0;
+  margin: 40px 0;
+
+  @media (max-width: 768px) {
+    gap: 16px;
+    margin: 32px 0;
+  }
 `;
 
 const IconItem = styled.div`
@@ -494,7 +501,7 @@ const HighlightBox = styled.div`
   border-left: 4px solid ${colors.sunlitGold};
   padding: 32px;
   border-radius: 16px;
-  margin: 32px 0;
+  margin: 40px 0;
   position: relative;
   overflow: hidden;
   backdrop-filter: blur(10px);
@@ -509,6 +516,11 @@ const HighlightBox = styled.div`
     background: radial-gradient(circle, ${colors.orchidPurple} 0%, transparent 70%);
     opacity: 0.1;
     animation: ${drift} 15s ease-in-out infinite;
+  }
+
+  @media (max-width: 768px) {
+    padding: 24px;
+    margin: 32px 0;
   }
 `;
 
@@ -581,7 +593,7 @@ const ButtonGroup = styled.div`
   gap: 16px;
   flex-wrap: wrap;
   justify-content: center;
-  margin-top: 48px;
+  margin-top: 40px;
 
   @media (max-width: 768px) {
     flex-direction: column;
@@ -589,6 +601,7 @@ const ButtonGroup = styled.div`
     max-width: 400px;
     margin-left: auto;
     margin-right: auto;
+    margin-top: 32px;
   }
 `;
 
@@ -680,12 +693,17 @@ const BodyText = styled.p`
   font-size: 18px;
   line-height: 1.9;
   color: ${colors.textSecondary};
-  margin-bottom: 24px;
+  margin-bottom: 20px;
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 
   @media (max-width: 768px) {
     font-size: 16px;
     line-height: 1.8;
+    margin-bottom: 16px;
   }
 `;
 
@@ -695,9 +713,11 @@ const BodyTextLarge = styled(BodyText)`
   max-width: 900px;
   margin-left: auto;
   margin-right: auto;
+  margin-bottom: 32px;
 
   @media (max-width: 768px) {
     font-size: 18px;
+    margin-bottom: 24px;
   }
 `;
 
@@ -710,20 +730,28 @@ const Emoji = styled.span`
 const UnorderedList = styled.ul`
   list-style: none;
   padding: 0;
-  margin: 24px 0;
+  margin: 32px 0;
   max-width: 800px;
   margin-left: auto;
   margin-right: auto;
+
+  @media (max-width: 768px) {
+    margin: 24px 0;
+  }
 `;
 
 const ListItem = styled.li`
   font-size: 18px;
   line-height: 2;
   color: ${colors.textSecondary};
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   padding-left: 32px;
   position: relative;
   text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+
+  &:last-child {
+    margin-bottom: 0;
+  }
 
   &::before {
     content: "→";
@@ -736,18 +764,24 @@ const ListItem = styled.li`
 
   @media (max-width: 768px) {
     font-size: 16px;
+    margin-bottom: 10px;
   }
 `;
 
 const IntroText = styled(BodyTextLarge)`
   font-size: 22px;
   line-height: 1.9;
-  margin-bottom: 32px;
+  margin-bottom: 24px;
   text-align: center;
   color: ${colors.textPrimary};
 
+  &:last-of-type {
+    margin-bottom: 0;
+  }
+
   @media (max-width: 768px) {
     font-size: 18px;
+    margin-bottom: 20px;
   }
 `;
 
@@ -762,6 +796,8 @@ const RealmExamples = styled.div`
 
   @media (max-width: 768px) {
     grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin: 24px 0;
   }
 `;
 

@@ -45,6 +45,47 @@ function getResourceUrl(req: NextApiRequest): string {
 }
 
 /**
+ * Type for payment requirements in 402 response
+ */
+type PaymentRequirements = {
+  scheme: "exact";
+  network: "base-sepolia";
+  resource: string;
+  description: string;
+  mimeType: string;
+  payTo: string;
+  maxAmountRequired: string;
+  maxTimeoutSeconds: number;
+  asset: string;
+};
+
+/**
+ * In-memory cache to store original 402 payment requirements
+ * Keyed by a combination of resource URL and itemId to retrieve exact requirements
+ * that were sent in the 402 response
+ */
+const original402Cache = new Map<string, { requirements: PaymentRequirements; timestamp: number }>();
+
+/**
+ * Generate a cache key from request details
+ */
+function getCacheKey(resourceUrl: string, itemId: string): string {
+  return `${resourceUrl}:${itemId}`;
+}
+
+/**
+ * Clean up old cache entries (older than 5 minutes)
+ */
+function cleanupCache(): void {
+  const fiveMinutesAgo = Date.now() - 5 * 60 * 1000;
+  for (const [key, value] of original402Cache.entries()) {
+    if (value.timestamp < fiveMinutesAgo) {
+      original402Cache.delete(key);
+    }
+  }
+}
+
+/**
  * API endpoint for purchasing game items
  * 
  * Following the x402 payment protocol sequence:
@@ -94,6 +135,18 @@ export default async function handler(
     console.log("Resource URL in 402:", resourceUrl);
     console.log("PayTo in 402:", accepts[0].payTo);
     console.log("MaxAmountRequired in 402:", accepts[0].maxAmountRequired);
+    
+    // Store the original 402 requirements for later retrieval during verification
+    // This ensures we use the EXACT same values that the client signed
+    const cacheKey = getCacheKey(resourceUrl, itemId);
+    original402Cache.set(cacheKey, {
+      requirements: { ...accepts[0] }, // Store a copy
+      timestamp: Date.now(),
+    });
+    console.log("Stored original 402 requirements in cache with key:", cacheKey);
+    
+    // Clean up old entries
+    cleanupCache();
     
     return res.status(402).json({
       x402Version: "1.0",
@@ -207,22 +260,37 @@ export default async function handler(
   console.log("paymentHeaderData.x402Version:", paymentHeaderData.x402Version, "(type:", typeof paymentHeaderData.x402Version, ")");
   console.log("Full paymentHeaderData structure:", JSON.stringify(paymentHeaderData, null, 2));
 
-  // The paymentRequirements MUST exactly match what was in the original 402 response
-  // that the client signed. We need to reconstruct it exactly as it was in the 402 response.
-  // IMPORTANT: The resource URL, description, and all fields must match EXACTLY.
-  // CRITICAL: The key order must also match the original 402 response, as it affects signature verification!
-  // CRITICAL: Use hardcoded values from the original 402 response, not client-provided values!
-  const paymentRequirements = {
-    scheme: "exact", // Hardcoded to match original 402 response
-    network: "base-sepolia", // Hardcoded to match original 402 response
-    resource: resourceUrl, // Must match exactly what was in the 402 response
-    description: `Purchase ${itemId}`, // Must match exactly what was in the 402 response
-    mimeType: "application/json",
-    payTo: originalPayTo, // Use original payTo from 402 response
-    maxAmountRequired, // Must be a string matching the 402 response
-    maxTimeoutSeconds: 300,
-    asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
-  };
+  // Try to retrieve the original 402 requirements from cache
+  // This ensures we use the EXACT values that were in the 402 response the client signed
+  const cacheKey = getCacheKey(resourceUrl, itemId);
+  const cachedRequirements = original402Cache.get(cacheKey);
+  
+  console.log("=== PAYMENT REQUIREMENTS SOURCE ===");
+  console.log("Cache key:", cacheKey);
+  console.log("Found cached requirements:", !!cachedRequirements);
+  
+  let paymentRequirements;
+  if (cachedRequirements) {
+    // Use the exact requirements from the original 402 response
+    paymentRequirements = { ...cachedRequirements.requirements };
+    console.log("✅ Using cached original 402 requirements");
+    console.log("Cached requirements:", JSON.stringify(paymentRequirements, null, 2));
+  } else {
+    console.warn("⚠️ No cached requirements found, reconstructing from current values");
+    console.warn("⚠️ This may cause a mismatch if values differ from the original 402 response");
+    // Fallback: reconstruct (should match original 402 exactly)
+    paymentRequirements = {
+      scheme: "exact", // Hardcoded to match original 402 response
+      network: "base-sepolia", // Hardcoded to match original 402 response
+      resource: resourceUrl, // Must match exactly what was in the 402 response
+      description: `Purchase ${itemId}`, // Must match exactly what was in the 402 response
+      mimeType: "application/json",
+      payTo: originalPayTo, // Use original payTo from 402 response
+      maxAmountRequired, // Must be a string matching the 402 response
+      maxTimeoutSeconds: 300,
+      asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    };
+  }
 
   // Log comparison between original 402 and what we're sending
   console.log("=== ORIGINAL 402 vs PAYMENT REQUIREMENTS COMPARISON ===");
@@ -237,6 +305,25 @@ export default async function handler(
     maxTimeoutSeconds: 300,
     asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
   };
+  
+  // Check if paymentRequirements has any fields that original402Accepts doesn't have
+  // or vice versa - this could indicate missing/extra fields issue
+  console.log("=== FIELD PRESENCE COMPARISON ===");
+  const originalFields = new Set(Object.keys(original402Accepts));
+  const paymentFields = new Set(Object.keys(paymentRequirements));
+  const fieldsOnlyInOriginal = [...originalFields].filter(f => !paymentFields.has(f));
+  const fieldsOnlyInPayment = [...paymentFields].filter(f => !originalFields.has(f));
+  
+  if (fieldsOnlyInOriginal.length > 0) {
+    console.warn("⚠️ Fields in original 402 but NOT in paymentRequirements:", fieldsOnlyInOriginal);
+  }
+  if (fieldsOnlyInPayment.length > 0) {
+    console.warn("⚠️ Fields in paymentRequirements but NOT in original 402:", fieldsOnlyInPayment);
+    console.warn("⚠️ These extra fields might cause the facilitator to reject the request!");
+  }
+  if (fieldsOnlyInOriginal.length === 0 && fieldsOnlyInPayment.length === 0) {
+    console.log("✅ Field sets match exactly");
+  }
   
   console.log("=== FIELD-BY-FIELD COMPARISON ===");
   const allKeys = new Set([...Object.keys(original402Accepts), ...Object.keys(paymentRequirements)]);
@@ -327,10 +414,31 @@ export default async function handler(
   };
 
   console.log("=== VERIFICATION REQUEST DETAILS ===");
+  
+  // Some facilitators require a stripped-down paymentRequirements for verify/settle calls
+  // that omits resource, description, and mimeType for privacy
+  // Let's try both versions to see which one works
+  const strippedPaymentRequirements = {
+    scheme: paymentRequirements.scheme,
+    network: paymentRequirements.network,
+    payTo: paymentRequirements.payTo,
+    maxAmountRequired: paymentRequirements.maxAmountRequired,
+    maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
+    asset: paymentRequirements.asset,
+  };
+  
+  console.log("=== PAYMENT REQUIREMENTS VERSIONS ===");
+  console.log("Full paymentRequirements (with resource, description, mimeType):");
+  console.log(JSON.stringify(paymentRequirements, null, 2));
+  console.log("Stripped paymentRequirements (privacy-enhanced, without resource/description/mimeType):");
+  console.log(JSON.stringify(strippedPaymentRequirements, null, 2));
+  
+  // Try with full paymentRequirements first (as we've been doing)
+  // If this fails, we can try the stripped version
   const verificationRequestBody = {
     x402Version: 1,
     paymentPayload,
-    paymentRequirements,
+    paymentRequirements, // Using full version
   };
   console.log("Full request body being sent to facilitator:", JSON.stringify(verificationRequestBody, null, 2));
   console.log("Request body size:", JSON.stringify(verificationRequestBody).length, "bytes");
@@ -345,6 +453,51 @@ export default async function handler(
   console.log("maxAmountRequired:", paymentRequirements.maxAmountRequired, "(type:", typeof paymentRequirements.maxAmountRequired, ")");
   console.log("maxTimeoutSeconds:", paymentRequirements.maxTimeoutSeconds, "(type:", typeof paymentRequirements.maxTimeoutSeconds, ")");
   console.log("asset:", paymentRequirements.asset);
+  
+  // Check for missing or extra fields
+  console.log("=== FIELD COUNT CHECK ===");
+  const allFields = Object.keys(paymentRequirements);
+  console.log("Total fields in paymentRequirements:", allFields.length);
+  console.log("Fields present:", allFields.join(", "));
+  
+  // Expected fields for exact scheme (based on x402 spec)
+  const expectedFields = [
+    "scheme",
+    "network", 
+    "resource",
+    "description",
+    "mimeType",
+    "payTo",
+    "maxAmountRequired",
+    "maxTimeoutSeconds",
+    "asset"
+  ];
+  
+  // Optional fields that might be expected
+  const optionalFields = ["outputSchema", "extra"];
+  
+  const missingFields = expectedFields.filter(field => !(field in paymentRequirements));
+  const extraFields = allFields.filter(field => !expectedFields.includes(field) && !optionalFields.includes(field));
+  const presentOptionalFields = optionalFields.filter(field => field in paymentRequirements);
+  
+  if (missingFields.length > 0) {
+    console.error("❌ MISSING REQUIRED FIELDS:", missingFields);
+  } else {
+    console.log("✅ All required fields present");
+  }
+  
+  if (extraFields.length > 0) {
+    console.warn("⚠️ EXTRA FIELDS (not in spec):", extraFields);
+    console.warn("⚠️ These extra fields might cause the facilitator to reject the request");
+  } else {
+    console.log("✅ No extra fields");
+  }
+  
+  if (presentOptionalFields.length > 0) {
+    console.log("ℹ️ Optional fields present:", presentOptionalFields);
+  } else {
+    console.log("ℹ️ No optional fields (outputSchema, extra)");
+  }
   
   console.log("=== PAYMENT PAYLOAD BREAKDOWN ===");
   console.log("Original x402Version from header:", paymentHeaderData.x402Version, "(type:", typeof paymentHeaderData.x402Version, ")");
@@ -409,6 +562,7 @@ export default async function handler(
   console.log("JWT token generated (length:", verifyJwt.length, "chars)");
   console.log("JWT token (first 50 chars):", verifyJwt.substring(0, 50) + "...");
   
+  // Try with full paymentRequirements first
   const requestBody = {
     x402Version: 1,
     paymentPayload,
@@ -418,7 +572,7 @@ export default async function handler(
   console.log("Request body JSON (length:", requestBodyJson.length, "chars):");
   console.log(requestBodyJson);
   
-  console.log("Making fetch request...");
+  console.log("Making fetch request with FULL paymentRequirements...");
   let verifyResponse = await fetch(verifyUrl, {
     method: "POST",
     headers: {
@@ -531,6 +685,7 @@ export default async function handler(
       console.error("=== INVALID PAYMENT REQUIREMENTS ERROR ===");
       console.error("⚠️ The facilitator rejected the payment requirements.");
       console.error("⚠️ This means one or more fields in paymentRequirements don't match what the facilitator expects.");
+      console.error("⚠️ The facilitator extracts requirements from the signature and compares them to paymentRequirements.");
       console.error("⚠️ Common causes:");
       console.error("   1. scheme/network mismatch (should be 'exact' and 'base-sepolia')");
       console.error("   2. resource URL mismatch (protocol, host, or path)");
@@ -539,28 +694,113 @@ export default async function handler(
       console.error("   5. asset address mismatch");
       console.error("   6. description mismatch");
       console.error("   7. Missing or extra fields");
+      console.error("   8. LOCALHOST URL REJECTION: The CDP facilitator may reject localhost URLs");
+      console.error("      even if all fields match. Try deploying to a public domain.");
       console.error("");
-      console.error("=== DETAILED COMPARISON ===");
-      console.error("What we sent (paymentRequirements):");
-      console.error(JSON.stringify(paymentRequirements, null, 2));
-      console.error("");
-      console.error("What was in original 402 response:");
-      console.error(JSON.stringify(original402Accepts, null, 2));
-      console.error("");
-      console.error("Field-by-field check:");
-      Object.keys(original402Accepts).forEach(key => {
-        const original = original402Accepts[key as keyof typeof original402Accepts];
-        const sent = paymentRequirements[key as keyof typeof paymentRequirements];
-        const match = original === sent;
-        console.error(`  ${key}: ${match ? '✅' : '❌'} "${original}" vs "${sent}"`);
+      
+      // Check if resource URL is localhost
+      if (paymentRequirements.resource?.includes('localhost') || paymentRequirements.resource?.includes('127.0.0.1')) {
+        console.error("🚨 CRITICAL: Resource URL is localhost!");
+        console.error("🚨 The CDP facilitator likely rejects localhost URLs for security reasons.");
+        console.error("🚨 Even though all fields match exactly, the facilitator may reject localhost.");
+        console.error("🚨 SOLUTION: Deploy to a public domain (e.g., Vercel, Netlify) and test again.");
+        console.error("🚨 The resource URL must be publicly accessible: https://yourdomain.com/api/purchase-item");
+        console.error("");
+      }
+      
+      // Some facilitators require a stripped-down paymentRequirements for verify calls
+      // Try with stripped version (without resource, description, mimeType)
+      console.log("=== TRYING STRIPPED PAYMENT REQUIREMENTS ===");
+      console.log("Some facilitators require a privacy-enhanced version without resource/description/mimeType");
+      const strippedPaymentRequirements = {
+        scheme: paymentRequirements.scheme,
+        network: paymentRequirements.network,
+        payTo: paymentRequirements.payTo,
+        maxAmountRequired: paymentRequirements.maxAmountRequired,
+        maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
+        asset: paymentRequirements.asset,
+      };
+      console.log("Stripped paymentRequirements:", JSON.stringify(strippedPaymentRequirements, null, 2));
+      
+      const strippedRequestBody = {
+        x402Version: 1,
+        paymentPayload,
+        paymentRequirements: strippedPaymentRequirements,
+      };
+      
+      console.log("Retrying verification with stripped paymentRequirements...");
+      const strippedVerifyJwt = await generateCDPJWT(apiKeyId, apiKeySecret, verifyPath);
+      const strippedVerifyResponse = await fetch(verifyUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${strippedVerifyJwt}`,
+        },
+        body: JSON.stringify(strippedRequestBody),
       });
-      console.error("");
-      console.error("Payment payload that was signed:");
-      console.error(JSON.stringify(paymentPayload, null, 2));
+      
+      const strippedResponseText = await strippedVerifyResponse.text();
+      console.log("Stripped verify response status:", strippedVerifyResponse.status);
+      console.log("Stripped verify response body:", strippedResponseText);
+      
+      let strippedSucceeded = false;
+      if (strippedResponseText && strippedResponseText.trim().startsWith('{')) {
+        const strippedVerifyData = JSON.parse(strippedResponseText);
+        if (strippedVerifyResponse.ok && strippedVerifyData.isValid) {
+          console.log("✅ SUCCESS with stripped paymentRequirements!");
+          console.log("✅ The facilitator requires a privacy-enhanced version without resource/description/mimeType");
+          verifyData = strippedVerifyData;
+          verifyResponse = strippedVerifyResponse;
+          strippedSucceeded = true;
+          // Break out of error handling - verification succeeded
+        } else {
+          console.error("❌ Stripped version also failed:", strippedVerifyData);
+          console.error("=== DETAILED COMPARISON ===");
+          console.error("What we sent (full paymentRequirements):");
+          console.error(JSON.stringify(paymentRequirements, null, 2));
+          console.error("What we sent (stripped paymentRequirements):");
+          console.error(JSON.stringify(strippedPaymentRequirements, null, 2));
+        }
+      } else {
+        console.error("=== DETAILED COMPARISON ===");
+        console.error("What we sent (paymentRequirements):");
+        console.error(JSON.stringify(paymentRequirements, null, 2));
+      }
+      
+      // If stripped version succeeded, break out of error handling entirely
+      if (strippedSucceeded) {
+        // Verification succeeded with stripped version, skip all remaining error handling
+        // The code will continue to settlement below (outside this if block)
+      } else {
+        // Stripped version also failed, continue with detailed error logging
+        console.error("");
+        console.error("What was in original 402 response:");
+        console.error(JSON.stringify(original402Accepts, null, 2));
+        console.error("");
+        console.error("Field-by-field check:");
+        Object.keys(original402Accepts).forEach(key => {
+          const original = original402Accepts[key as keyof typeof original402Accepts];
+          const sent = paymentRequirements[key as keyof typeof paymentRequirements];
+          const match = original === sent;
+          console.error(`  ${key}: ${match ? '✅' : '❌'} "${original}" vs "${sent}"`);
+        });
+        console.error("");
+        console.error("Payment payload that was signed:");
+        console.error(JSON.stringify(paymentPayload, null, 2));
+        
+        // Return error if both full and stripped versions failed
+        return res.status(402).json({
+          x402Version: "1.0",
+          error: "Payment verification failed. Both full and stripped paymentRequirements were rejected.",
+          errorReason: verifyData.invalidReason,
+          accepts: [paymentRequirements],
+        });
+      }
+      // If strippedSucceeded is true, we break out here and continue to settlement
     }
     
-    // Handle signature errors specifically
-    if (verifyData.invalidReason === 'invalid_exact_evm_payload_signature') {
+    // Handle signature errors specifically (only if still failed after stripped attempt)
+    if (!verifyResponse.ok || !verifyData.isValid && verifyData.invalidReason === 'invalid_exact_evm_payload_signature') {
       console.error("⚠️ Payment signature is invalid.");
       console.error("⚠️ This usually means the paymentRequirements don't match what was signed.");
       console.error("⚠️ Payment Requirements sent:", JSON.stringify(paymentRequirements, null, 2));
@@ -576,12 +816,15 @@ export default async function handler(
       });
     }
     
-    return res.status(402).json({
-      x402Version: "1.0",
-      error: "Payment verification failed",
-      errorReason: verifyData.invalidReason,
-      accepts: [paymentRequirements],
-    });
+    // If we get here and verification still failed, return generic error
+    if (!verifyResponse.ok || !verifyData.isValid) {
+      return res.status(402).json({
+        x402Version: "1.0",
+        error: "Payment verification failed",
+        errorReason: verifyData.invalidReason,
+        accepts: [paymentRequirements],
+      });
+    }
   }
 
   console.log("✅ Payment verified, processing purchase...");
