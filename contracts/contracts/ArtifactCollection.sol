@@ -11,8 +11,10 @@ import "@openzeppelin/contracts/access/Ownable.sol";
  */
 contract ArtifactCollection is ERC721, ERC721URIStorage, Ownable {
     uint256 public nextTokenId;
+    mapping(address => bool) public isMinter;
 
     event ArtifactMinted(address indexed to, uint256 indexed tokenId, string uri);
+    event MinterUpdated(address indexed account, bool allowed);
 
     /**
      * @dev Constructor sets the token name and symbol, and transfers ownership
@@ -22,12 +24,24 @@ contract ArtifactCollection is ERC721, ERC721URIStorage, Ownable {
     }
 
     /**
+     * @dev Allows the owner to grant or revoke minter status
+     * @param account The address to set minter status for
+     * @param allowed Whether the account should be allowed to mint
+     */
+    function setMinter(address account, bool allowed) external onlyOwner {
+        isMinter[account] = allowed;
+        emit MinterUpdated(account, allowed);
+    }
+
+    /**
      * @dev Mints a new artifact NFT to the specified address
      * @param to The address to mint the artifact to
      * @param uri The URI for the artifact's metadata
      * @return The token ID of the newly minted artifact
      */
-    function mintArtifact(address to, string calldata uri) external onlyOwner returns (uint256) {
+    function mintArtifact(address to, string calldata uri) external returns (uint256) {
+        require(isMinter[msg.sender] || owner() == msg.sender, "ArtifactCollection: not minter");
+        
         uint256 tokenId = nextTokenId;
         nextTokenId += 1;
 

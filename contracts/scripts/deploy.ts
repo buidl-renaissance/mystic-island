@@ -34,16 +34,28 @@ async function main() {
   console.log("");
   
   // 2. Deploy ArtifactCollection
-  console.log("📝 Step 2/4: Deploying ArtifactCollection...");
+  console.log("📝 Step 2/5: Deploying ArtifactCollection...");
   const ArtifactCollection = await ethers.getContractFactory("ArtifactCollection");
   const artifactCollection = await ArtifactCollection.deploy(deployer.address);
   await artifactCollection.waitForDeployment();
   const artifactCollectionAddress = await artifactCollection.getAddress();
   console.log("✅ ArtifactCollection deployed at:", artifactCollectionAddress);
   console.log("");
-  
-  // 3. Deploy TotemManager
-  console.log("📝 Step 3/4: Deploying TotemManager...");
+
+  // 3. Deploy TribeManager
+  console.log("📝 Step 3/5: Deploying TribeManager...");
+  const TribeManager = await ethers.getContractFactory("TribeManager");
+  const tribeManager = await TribeManager.deploy(
+    deployer.address,
+    artifactCollectionAddress
+  );
+  await tribeManager.waitForDeployment();
+  const tribeManagerAddress = await tribeManager.getAddress();
+  console.log("✅ TribeManager deployed at:", tribeManagerAddress);
+  console.log("");
+
+  // 4. Deploy TotemManager
+  console.log("📝 Step 4/5: Deploying TotemManager...");
   const TotemManager = await ethers.getContractFactory("TotemManager");
   const totemManager = await TotemManager.deploy(
     deployer.address,
@@ -54,9 +66,9 @@ async function main() {
   const totemManagerAddress = await totemManager.getAddress();
   console.log("✅ TotemManager deployed at:", totemManagerAddress);
   console.log("");
-  
-  // 4. Deploy QuestManager
-  console.log("📝 Step 4/4: Deploying QuestManager...");
+
+  // 5. Deploy QuestManager
+  console.log("📝 Step 5/5: Deploying QuestManager...");
   const QuestManager = await ethers.getContractFactory("QuestManager");
   const questManager = await QuestManager.deploy(
     deployer.address,
@@ -67,12 +79,19 @@ async function main() {
   const questManagerAddress = await questManager.getAddress();
   console.log("✅ QuestManager deployed at:", questManagerAddress);
   console.log("");
+
+  // 6. Set minter roles
+  console.log("🔧 Setting minter roles...");
   
-  // 5. Set QuestManager as minter for MagicToken
-  console.log("🔧 Setting QuestManager as minter for MagicToken...");
-  const setMinterTx = await magicToken.setMinter(questManagerAddress, true);
-  await setMinterTx.wait();
-  console.log("✅ QuestManager set as minter");
+  // Set QuestManager as minter for MagicToken
+  const setMinterTx1 = await magicToken.setMinter(questManagerAddress, true);
+  await setMinterTx1.wait();
+  console.log("✅ QuestManager set as minter for MagicToken");
+  
+  // Set TribeManager as minter for ArtifactCollection
+  const setMinterTx2 = await artifactCollection.setMinter(tribeManagerAddress, true);
+  await setMinterTx2.wait();
+  console.log("✅ TribeManager set as minter for ArtifactCollection");
   console.log("");
   
   // Summary
@@ -83,6 +102,7 @@ async function main() {
   console.log("📋 Contract Addresses:");
   console.log("  MagicToken:", magicTokenAddress);
   console.log("  ArtifactCollection:", artifactCollectionAddress);
+  console.log("  TribeManager:", tribeManagerAddress);
   console.log("  TotemManager:", totemManagerAddress);
   console.log("  QuestManager:", questManagerAddress);
   console.log("");

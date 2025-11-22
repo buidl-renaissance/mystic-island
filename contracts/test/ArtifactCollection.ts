@@ -36,6 +36,34 @@ describe("ArtifactCollection", function () {
     });
   });
 
+  describe("Minter Management", function () {
+    it("Should allow owner to set minter", async function () {
+      await expect(
+        artifactCollection.connect(owner).setMinter(userAddress, true)
+      )
+        .to.emit(artifactCollection, "MinterUpdated")
+        .withArgs(userAddress, true);
+
+      expect(await artifactCollection.isMinter(userAddress)).to.be.true;
+    });
+
+    it("Should allow owner to revoke minter", async function () {
+      await artifactCollection.connect(owner).setMinter(userAddress, true);
+      await artifactCollection.connect(owner).setMinter(userAddress, false);
+
+      expect(await artifactCollection.isMinter(userAddress)).to.be.false;
+    });
+
+    it("Should not allow non-owner to set minter", async function () {
+      await expect(
+        artifactCollection.connect(user).setMinter(userAddress, true)
+      ).to.be.revertedWithCustomError(
+        artifactCollection,
+        "OwnableUnauthorizedAccount"
+      );
+    });
+  });
+
   describe("Minting", function () {
     it("Should allow owner to mint artifact", async function () {
       const uri = "https://example.com/artifact/1";
@@ -50,14 +78,24 @@ describe("ArtifactCollection", function () {
       expect(await artifactCollection.nextTokenId()).to.equal(1n);
     });
 
-    it("Should not allow non-owner to mint", async function () {
+    it("Should allow minter to mint artifact", async function () {
+      await artifactCollection.connect(owner).setMinter(userAddress, true);
+      
       const uri = "https://example.com/artifact/1";
       await expect(
         artifactCollection.connect(user).mintArtifact(userAddress, uri)
-      ).to.be.revertedWithCustomError(
-        artifactCollection,
-        "OwnableUnauthorizedAccount"
-      );
+      )
+        .to.emit(artifactCollection, "ArtifactMinted")
+        .withArgs(userAddress, 0n, uri);
+
+      expect(await artifactCollection.ownerOf(0n)).to.equal(userAddress);
+    });
+
+    it("Should not allow non-minter non-owner to mint", async function () {
+      const uri = "https://example.com/artifact/1";
+      await expect(
+        artifactCollection.connect(user).mintArtifact(userAddress, uri)
+      ).to.be.revertedWith("ArtifactCollection: not minter");
     });
 
     it("Should increment tokenId for each mint", async function () {

@@ -115,6 +115,56 @@ export default function Navigation() {
           >
             Deploy Wallet
           </Link>
+          <Link
+            href="/contracts"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Contracts
+          </Link>
+          <Link
+            href="/create-artifact"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Create Artifact
+          </Link>
+          <Link
+            href="/join-tribe"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Join Tribe
+          </Link>
+          <Link
+            href="/dashboard"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Dashboard
+          </Link>
+          <Link
+            href="/review-requests"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Review Requests
+          </Link>
         </div>
       </div>
 

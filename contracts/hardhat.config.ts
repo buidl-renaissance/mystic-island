@@ -7,6 +7,9 @@ export default defineConfig({
     profiles: {
       default: {
         version: "0.8.24",
+        settings: {
+          viaIR: true, // Enable IR-based compilation to avoid "stack too deep" errors
+        },
       },
       production: {
         version: "0.8.24",
@@ -15,6 +18,7 @@ export default defineConfig({
             enabled: true,
             runs: 200,
           },
+          viaIR: true, // Enable IR-based compilation to avoid "stack too deep" errors
         },
       },
     },
