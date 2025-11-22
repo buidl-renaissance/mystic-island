@@ -44,8 +44,10 @@ export default defineConfig({
       type: "http",
       chainType: "l1",
       url: "https://mysticisland-2763823383026000-1.jsonrpc.sagarpc.io",
-      accounts: [configVariable("SAGA_PRIVATE_KEY")],
-      chainId: 0, // Will be determined from network
+      accounts: process.env.SAGA_PRIVATE_KEY 
+        ? [process.env.SAGA_PRIVATE_KEY]
+        : [configVariable("SAGA_PRIVATE_KEY")],
+      chainId: 2763823383026000, // Saga chainlet chain ID
     },
   },
 });
