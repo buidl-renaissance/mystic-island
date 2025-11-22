@@ -200,6 +200,7 @@ export default async function handler(
   // The paymentRequirements MUST exactly match what was in the original 402 response
   // that the client signed. We need to reconstruct it exactly as it was in the 402 response.
   // IMPORTANT: The resource URL, description, and all fields must match EXACTLY.
+  // CRITICAL: The key order must also match the original 402 response, as it affects signature verification!
   const paymentRequirements = {
     scheme: paymentHeaderData.scheme,
     network: paymentHeaderData.network,
@@ -259,6 +260,29 @@ export default async function handler(
   console.log("Original 402 JSON:", originalJson);
   console.log("Current JSON:     ", currentJson);
   console.log("Are they equal?", originalJson === currentJson);
+  
+  // Check key order - this matters for signature verification!
+  console.log("=== KEY ORDER COMPARISON ===");
+  const originalKeys = Object.keys(original402Accepts);
+  const currentKeys = Object.keys(paymentRequirements);
+  console.log("Original 402 key order:", originalKeys.join(" -> "));
+  console.log("Current key order:     ", currentKeys.join(" -> "));
+  console.log("Key order matches?", JSON.stringify(originalKeys) === JSON.stringify(currentKeys));
+  
+  if (JSON.stringify(originalKeys) !== JSON.stringify(currentKeys)) {
+    console.warn("⚠️ KEY ORDER MISMATCH!");
+    console.warn("⚠️ The order of keys in the JSON object matters for signature verification!");
+    console.warn("⚠️ The client signed based on the original 402 response key order.");
+    console.warn("⚠️ If the order differs, the facilitator's signature verification will fail.");
+    
+    // Show which keys are in different positions
+    originalKeys.forEach((key, index) => {
+      const currentIndex = currentKeys.indexOf(key);
+      if (currentIndex !== index) {
+        console.warn(`  Key "${key}": original position ${index}, current position ${currentIndex}`);
+      }
+    });
+  }
   
   if (originalJson !== currentJson) {
     console.log("=== JSON DIFF ANALYSIS ===");
