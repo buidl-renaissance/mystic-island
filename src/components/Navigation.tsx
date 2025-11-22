@@ -105,6 +105,16 @@ export default function Navigation() {
           >
             Faucet
           </Link>
+          <Link
+            href="/deploy-wallet"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Deploy Wallet
+          </Link>
         </div>
       </div>
 

@@ -77,15 +77,27 @@ export async function makePaidRequest(
 /**
  * Helper function to decode x-payment-response header
  * This header contains information about the payment that was made
+ * 
+ * The x402-next middleware Base64-encodes the header value
  */
 export function decodePaymentResponse(
   headerValue: string | null
 ): any | null {
   if (!headerValue) return null;
   try {
-    return JSON.parse(decodeURIComponent(headerValue));
+    // The middleware Base64-encodes the header value
+    // Try Base64 decode first, then fall back to URL decode
+    try {
+      const decoded = Buffer.from(headerValue, 'base64').toString('utf-8');
+      return JSON.parse(decoded);
+    } catch (base64Error) {
+      // Fall back to URL decode (for backwards compatibility)
+      const urlDecoded = decodeURIComponent(headerValue);
+      return JSON.parse(urlDecoded);
+    }
   } catch (error) {
     console.error("Error decoding payment response:", error);
+    console.error("Header value (first 100 chars):", headerValue.substring(0, 100));
     return null;
   }
 }

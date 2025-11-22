@@ -170,11 +170,34 @@ export default function PurchaseItem({
           onPurchaseSuccess(data);
         }
       } else if (response.status === 402) {
-        // 402 Payment Required - keep the button in loading state
-        // Don't throw an error, just keep processing state
-        // The payment flow should be handled by x402-fetch automatically
-        console.log("Payment required - keeping button in loading state");
-        return; // Exit early, keep isPurchasing true
+        // 402 Payment Required - could be initial payment request or error
+        try {
+          const errorData = await response.json();
+          
+          // Check if it's an undeployed wallet error
+          if (errorData.errorCode === "UNDEPLOYED_WALLET" || 
+              errorData.error?.includes("not deployed") ||
+              errorData.error?.includes("undeployed")) {
+            setErrorMessage(
+              "Your wallet needs to be deployed first. Please make a small transaction (e.g., request funds from the faucet) to deploy your wallet, then try again."
+            );
+            setPurchaseStatus("error");
+            setIsPurchasing(false);
+            if (onPurchaseError) {
+              onPurchaseError(new Error("Wallet not deployed"));
+            }
+            return;
+          }
+          
+          // Otherwise, it's a normal 402 - keep the button in loading state
+          // The payment flow should be handled by x402-fetch automatically
+          console.log("Payment required - keeping button in loading state");
+          return; // Exit early, keep isPurchasing true
+        } catch {
+          // If we can't parse the error, treat it as a normal 402
+          console.log("Payment required - keeping button in loading state");
+          return;
+        }
       } else {
         // Try to get error message from response body
         let errorText = "";
