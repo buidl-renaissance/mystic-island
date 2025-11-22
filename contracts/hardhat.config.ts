@@ -40,5 +40,12 @@ export default defineConfig({
       url: configVariable("SEPOLIA_RPC_URL"),
       accounts: [configVariable("SEPOLIA_PRIVATE_KEY")],
     },
+    saga: {
+      type: "http",
+      chainType: "l1",
+      url: "https://mysticisland-2763823383026000-1.jsonrpc.sagarpc.io",
+      accounts: [configVariable("SAGA_PRIVATE_KEY")],
+      chainId: 0, // Will be determined from network
+    },
   },
 });

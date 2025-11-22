@@ -102,6 +102,13 @@ export default function DeployWalletPage() {
     setTransactionHash(null);
 
     try {
+      if (!smartAccount) {
+        setErrorMessage("Smart account not available. Please ensure you're properly connected.");
+        setDeploymentStatus("error");
+        setIsDeploying(false);
+        return;
+      }
+
       console.log("Deploying wallet by sending a small transaction to self...");
       
       // Send a very small amount (0.00001 ETH) to self to trigger wallet deployment
@@ -123,7 +130,7 @@ export default function DeployWalletPage() {
       });
 
       console.log("Deployment user operation sent:", result);
-      setTransactionHash(result.userOperationHash || result.transactionHash);
+      setTransactionHash(result.userOperationHash || undefined);
       setDeploymentStatus("success");
 
       // Start polling for deployment status after a short delay
@@ -284,9 +291,9 @@ export default function DeployWalletPage() {
               
               <button
                 onClick={handleDeployWallet}
-                disabled={isDeploying || !evmAddress || (ethBalance && parseFloat(ethBalance) < 0.0001)}
+                disabled={isDeploying || !evmAddress || !!(ethBalance && parseFloat(ethBalance) < 0.0001)}
                 style={{
-                  backgroundColor: isDeploying || !evmAddress || (ethBalance && parseFloat(ethBalance) < 0.0001) 
+                  backgroundColor: isDeploying || !evmAddress || !!(ethBalance && parseFloat(ethBalance) < 0.0001) 
                     ? "#ccc" 
                     : "#098551",
                   color: "#ffffff",
