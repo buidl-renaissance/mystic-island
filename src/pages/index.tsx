@@ -373,7 +373,7 @@ export default function Home() {
             Build. Connect. Grow.
           </HeroTitle>
           <HeroSubtitle>
-            Communities form their own realms, build Totems together, and connect through shared experiences.
+            Communities forge realms. Realms forge totems. Totems forge worlds.
           </HeroSubtitle>
           <ButtonGroup>
             <PrimaryButton href="/deploy-wallet">Begin Your Journey</PrimaryButton>

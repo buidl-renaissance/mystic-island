@@ -124,6 +124,18 @@ const PageContainer = styled.div`
     pointer-events: none;
     z-index: 1;
   }
+
+  &::after {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.65);
+    pointer-events: none;
+    z-index: 1;
+  }
 `;
 
 const ParticleContainer = styled.div`
@@ -664,14 +676,120 @@ const FooterBottom = styled.div`
   color: ${colors.textMuted};
 `;
 
+const BodyText = styled.p`
+  font-size: 18px;
+  line-height: 1.9;
+  color: ${colors.textSecondary};
+  margin-bottom: 24px;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+    line-height: 1.8;
+  }
+`;
+
+const BodyTextLarge = styled(BodyText)`
+  font-size: 20px;
+  line-height: 2;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
+`;
+
+const Emoji = styled.span`
+  font-size: 1.2em;
+  margin-right: 8px;
+  filter: drop-shadow(0 0 4px ${colors.sunlitGold});
+`;
+
+const UnorderedList = styled.ul`
+  list-style: none;
+  padding: 0;
+  margin: 24px 0;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+`;
+
+const ListItem = styled.li`
+  font-size: 18px;
+  line-height: 2;
+  color: ${colors.textSecondary};
+  margin-bottom: 16px;
+  padding-left: 32px;
+  position: relative;
+  text-shadow: 0 1px 10px rgba(0, 0, 0, 0.5);
+
+  &::before {
+    content: "→";
+    position: absolute;
+    left: 0;
+    color: ${colors.jungleCyan};
+    font-weight: 600;
+    filter: drop-shadow(0 0 4px ${colors.jungleCyan});
+  }
+
+  @media (max-width: 768px) {
+    font-size: 16px;
+  }
+`;
+
+const IntroText = styled(BodyTextLarge)`
+  font-size: 22px;
+  line-height: 1.9;
+  margin-bottom: 32px;
+  text-align: center;
+  color: ${colors.textPrimary};
+
+  @media (max-width: 768px) {
+    font-size: 18px;
+  }
+`;
+
+const RealmExamples = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 32px 0;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(2, 1fr);
+  }
+`;
+
+const RealmExample = styled.div`
+  padding: 16px;
+  background: linear-gradient(135deg, rgba(45, 90, 61, 0.1) 0%, rgba(10, 20, 16, 0.15) 100%);
+  border: 1px solid ${colors.emeraldSpirit};
+  border-radius: 12px;
+  text-align: center;
+  font-size: 16px;
+  color: ${colors.textSecondary};
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-4px);
+    border-color: ${colors.jungleCyan};
+    box-shadow: 0 8px 25px rgba(101, 201, 166, 0.2);
+  }
+`;
+
 export default function About() {
   return (
     <>
       <Head>
-        <title>About Mystic Island – Features & Platform Details</title>
+        <title>About the Myth Network – A Living Universe Shaped by Communities</title>
         <meta
           name="description"
-          content="Learn about Mystic Island's features, Totem system, cross-realm connections, economy, and technology stack."
+          content="The Myth Network is the mythic, game-driven layer of the Your Land Network—a living universe shaped by collective imagination where communities create realms, build totems, and form alliances."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
         <link rel="icon" href="/favicon.ico" />
@@ -690,400 +808,302 @@ export default function About() {
               />
             ))}
           </ParticleContainer>
-          <HeroTitle>About Mystic Island</HeroTitle>
+          <HeroTitle>🌌 About the Myth Network</HeroTitle>
           <HeroSubtitle>
-            A collaborative world where communities build, grow, and connect through shared creation.
+            Communities forge their own realms, power up shared totems, and open portals to collaborate and grow across worlds.
           </HeroSubtitle>
         </HeroSection>
 
-        {/* 1. The Why */}
-        <Section id="why">
-          <SectionTitle>The Why</SectionTitle>
-          <SectionSubtitle>
-            Communities need better tools to grow together.
-          </SectionSubtitle>
-          <ContentGrid>
-            <Card>
-              <CardTitle>Online spaces are fragmented</CardTitle>
-              <CardText>
-                Communities struggle to find cohesive platforms that bring
-                everyone together.
-              </CardText>
-            </Card>
-            <Card>
-              <CardTitle>Artists struggle for attention</CardTitle>
-              <CardText>
-                Creative work gets lost in the noise without proper community
-                support.
-              </CardText>
-            </Card>
-            <Card>
-              <CardTitle>Builders are isolated</CardTitle>
-              <CardText>
-                Developers and creators work alone without collaborative
-                frameworks.
-              </CardText>
-            </Card>
-            <Card>
-              <CardTitle>Organizers can't coordinate</CardTitle>
-              <CardText>
-                Community leaders lack tools to effectively manage and grow
-                their groups.
-              </CardText>
-            </Card>
-            <Card>
-              <CardTitle>New creators have nowhere to start</CardTitle>
-              <CardText>
-                Beginners face barriers to entry without clear pathways to
-                contribute.
-              </CardText>
-            </Card>
-          </ContentGrid>
+        {/* What Is the Myth Network? */}
+        <Section id="what-is">
+          <SectionTitle>What Is the Myth Network?</SectionTitle>
+          <BodyTextLarge>
+            The Myth Network is the mythic, game-driven layer of the Your Land Network—a living universe shaped by collective imagination.
+          </BodyTextLarge>
+          <BodyText>
+            It's where communities come together to create realms, build shared totems fueled by their creativity, and form alliances across worlds through portals.
+          </BodyText>
+          <BodyText>
+            In the Myth Network, every community is more than a group of people.
+          </BodyText>
           <HighlightBox>
             <HighlightText>
-              <strong>Mystic Island</strong> turns communities into living
-              worlds—where collaboration, creativity, and reputation take form.
+              <strong>It is a tribe, a realm, and a mythic force that grows through collaboration.</strong>
             </HighlightText>
           </HighlightBox>
         </Section>
 
-        {/* 2. How It Works */}
-        <Section id="how">
-          <SectionTitle>How It Works</SectionTitle>
-          <StepContainer>
-            <Step>
-              <StepNumber delay={0}>1</StepNumber>
-              <StepContent>
-                <StepTitle>Start an Island</StepTitle>
-                <StepText>
-                  Every community gets its own Island (Saga chainlet). Define
-                  your culture, your lore, your quests, your roles.
-                </StepText>
-              </StepContent>
-            </Step>
-            <Step>
-              <StepNumber delay={1}>2</StepNumber>
-              <StepContent>
-                <StepTitle>Build Your Totem</StepTitle>
-                <StepText>
-                  Members contribute art, code, quests, events, and Seeds to
-                  grow your Totem Power. Your Totem becomes the symbol of your
-                  collective identity.
-                </StepText>
-              </StepContent>
-            </Step>
-            <Step>
-              <StepNumber delay={2}>3</StepNumber>
-              <StepContent>
-                <StepTitle>Connect With Other Islands</StepTitle>
-                <StepText>
-                  Stake your Totem Power to open bridges, share resources, run
-                  cross-realm quests, and grow together.
-                </StepText>
-              </StepContent>
-            </Step>
-          </StepContainer>
+        {/* A Living Universe Shaped by Communities */}
+        <Section id="living-universe">
+          <SectionTitle>A Living Universe Shaped by Communities</SectionTitle>
+          <BodyTextLarge>
+            Every realm in the Myth Network is born from a community's identity, culture, and collaborative contributions.
+          </BodyTextLarge>
+          <BodyText>
+            Realms aren't static spaces—they evolve as the community does.
+          </BodyText>
+          <UnorderedList>
+            <ListItem>A new idea becomes a seed.</ListItem>
+            <ListItem>A shared creation becomes part of the realm.</ListItem>
+            <ListItem>A series of contributions grows a totem.</ListItem>
+            <ListItem>A mature totem opens portals to other realms.</ListItem>
+          </UnorderedList>
+          <BodyText>
+            Everything is collectively built, collectively powered, and collectively owned.
+          </BodyText>
         </Section>
 
-        {/* 3. The Totem System */}
-        <Section id="totem">
-          <SectionTitle>🗿 Your Totem Is Your Community's Heart</SectionTitle>
-          <SectionSubtitle>
-            Every contribution from your members feeds your Totem and increases
-            its Power.
-          </SectionSubtitle>
+        {/* Realms: Where Communities Take Shape */}
+        <Section id="realms">
+          <SectionTitle>Realms: Where Communities Take Shape</SectionTitle>
+          <BodyTextLarge>
+            A realm is a living world created by a community.
+          </BodyTextLarge>
+          <BodyText>
+            Your realm reflects:
+          </BodyText>
+          <UnorderedList>
+            <ListItem>your collective creativity</ListItem>
+            <ListItem>your culture</ListItem>
+            <ListItem>your stories</ListItem>
+            <ListItem>your challenges</ListItem>
+            <ListItem>and the values that shape your tribe</ListItem>
+          </UnorderedList>
+          <BodyText>
+            This is your home world in the Myth Network—your canvas, your sanctuary, and your place to grow.
+          </BodyText>
+          <BodyText>
+            Realms can take many forms:
+          </BodyText>
+          <RealmExamples>
+            <RealmExample>🌿 mystical forests</RealmExample>
+            <RealmExample>🔥 volcanic forges</RealmExample>
+            <RealmExample>🌀 metaphysical dream worlds</RealmExample>
+            <RealmExample>🌙 spiritual, cultural, artistic, or narrative-driven spaces</RealmExample>
+          </RealmExamples>
+          <BodyText>
+            Your realm becomes a mirror of your community's journey.
+          </BodyText>
+        </Section>
+
+        {/* Totems: The Heart of Collective Power */}
+        <Section id="totems">
+          <SectionTitle>Totems: The Heart of Collective Power</SectionTitle>
+          <BodyTextLarge>
+            At the center of every realm stands a totem—a living artifact powered by your community's actions.
+          </BodyTextLarge>
+          <BodyText>
+            Totems grow when your community:
+          </BodyText>
           <IconGrid>
             <IconItem>
-              <Icon delay={0}>🎨</Icon>
-              <IconLabel>Art</IconLabel>
+              <Icon delay={0}>✨</Icon>
+              <IconLabel>creates together</IconLabel>
             </IconItem>
             <IconItem>
-              <Icon delay={1}>🛠️</Icon>
-              <IconLabel>Builds</IconLabel>
+              <Icon delay={1}>📜</Icon>
+              <IconLabel>completes quests</IconLabel>
             </IconItem>
             <IconItem>
-              <Icon delay={2}>📜</Icon>
-              <IconLabel>Lore</IconLabel>
+              <Icon delay={2}>🎪</Icon>
+              <IconLabel>hosts events</IconLabel>
             </IconItem>
             <IconItem>
-              <Icon delay={3}>🎧</Icon>
-              <IconLabel>Events</IconLabel>
+              <Icon delay={3}>🎨</Icon>
+              <IconLabel>collaborates on stories or art</IconLabel>
             </IconItem>
             <IconItem>
-              <Icon delay={4}>🤝</Icon>
-              <IconLabel>Collaboration</IconLabel>
+              <Icon delay={4}>⚔️</Icon>
+              <IconLabel>participates in challenges</IconLabel>
             </IconItem>
             <IconItem>
-              <Icon delay={5}>🌱</Icon>
-              <IconLabel>Seeds</IconLabel>
+              <Icon delay={5}>🤝</Icon>
+              <IconLabel>supports other realms</IconLabel>
             </IconItem>
           </IconGrid>
+          <BodyText>
+            Your totem is the pulse of your realm.
+          </BodyText>
+          <BodyText>
+            Its strength unlocks new abilities, opportunities, and pathways across the Myth Network.
+          </BodyText>
           <HighlightBox>
             <HighlightText>
-              <strong>Totem Power</strong> = your community's collective
-              strength.
+              <strong>A strong totem makes your realm a beacon that others can connect to.</strong>
             </HighlightText>
           </HighlightBox>
         </Section>
 
-        {/* 4. Totem Power */}
-        <Section id="power">
-          <SectionTitle>⚡ Stake Power. Not the Totem.</SectionTitle>
-          <SectionSubtitle>
-            Your Totem is sacred and permanent. But the Power inside it can be
-            staked to:
-          </SectionSubtitle>
-          <FeatureList>
-            <FeatureItem>Open cross-realm bridges</FeatureItem>
-            <FeatureItem>Unlock shared quests</FeatureItem>
-            <FeatureItem>Launch multi-community festivals</FeatureItem>
-            <FeatureItem>Craft inter-realm artifacts</FeatureItem>
-            <FeatureItem>Form alliances</FeatureItem>
-            <FeatureItem>Participate in global governance</FeatureItem>
-          </FeatureList>
+        {/* Portals: Bridges Between Worlds */}
+        <Section id="portals">
+          <SectionTitle>Portals: Bridges Between Worlds</SectionTitle>
+          <BodyTextLarge>
+            When a totem reaches certain thresholds, portals awaken.
+          </BodyTextLarge>
+          <BodyText>
+            Portals allow your community to:
+          </BodyText>
+          <UnorderedList>
+            <ListItem>connect with other realms</ListItem>
+            <ListItem>collaborate across worlds</ListItem>
+            <ListItem>share challenges, stories, and creations</ListItem>
+            <ListItem>traverse the Myth Network</ListItem>
+            <ListItem>build alliances and cross-community bonds</ListItem>
+          </UnorderedList>
+          <BodyText>
+            Portals are the connective tissue of the Myth Network.
+          </BodyText>
           <HighlightBox>
             <HighlightText>
-              <strong>If something goes wrong? Only power is slashed.</strong>
-              <br />
-              Your Totem stays safe. Your culture endures.
+              <strong>They transform isolated communities into an interconnected ecosystem of creativity, support, and shared growth.</strong>
             </HighlightText>
           </HighlightBox>
         </Section>
 
-        {/* 5. The World Layer */}
-        <Section id="world">
-          <SectionTitle>🌉 Islands Are Connected by Bridges You Build Together</SectionTitle>
-          <SectionSubtitle>
-            Communities choose who they connect with. Every bridge unlocks new
-            experiences:
-          </SectionSubtitle>
+        {/* Why the Myth Network Exists */}
+        <Section id="why">
+          <SectionTitle>Why the Myth Network Exists</SectionTitle>
+          <BodyTextLarge>
+            The Myth Network is designed to bring people together through:
+          </BodyTextLarge>
+          <UnorderedList>
+            <ListItem>collective imagination</ListItem>
+            <ListItem>meaningful collaboration</ListItem>
+            <ListItem>shared myth-making</ListItem>
+            <ListItem>community-driven storytelling</ListItem>
+            <ListItem>cross-world alliances</ListItem>
+            <ListItem>gamified engagement</ListItem>
+            <ListItem>sovereign digital identity</ListItem>
+          </UnorderedList>
+          <BodyText>
+            It's a way to experience what communities can build when given their own world to shape.
+          </BodyText>
           <ContentGrid>
             <Card>
-              <CardTitle>Cross-realm quests</CardTitle>
+              <CardTitle>Instead of passively consuming content</CardTitle>
               <CardText>
-                Embark on adventures that span multiple Islands, requiring
-                collaboration between communities.
+                people create it together.
               </CardText>
             </Card>
             <Card>
-              <CardTitle>Shared events</CardTitle>
+              <CardTitle>Instead of being trapped in centralized feeds</CardTitle>
               <CardText>
-                Host festivals, ceremonies, and gatherings that bring Islands
-                together.
+                communities build sovereign digital realms.
               </CardText>
             </Card>
             <Card>
-              <CardTitle>Collaborative exhibitions</CardTitle>
+              <CardTitle>Instead of being disconnected online</CardTitle>
               <CardText>
-                Showcase art, builds, and creations across connected realms.
-              </CardText>
-            </Card>
-            <Card>
-              <CardTitle>Inter-realm markets</CardTitle>
-              <CardText>
-                Trade resources, artifacts, and unique items between Islands.
-              </CardText>
-            </Card>
-            <Card>
-              <CardTitle>Joint lore arcs</CardTitle>
-              <CardText>
-                Create interconnected stories that weave through multiple
-                communities.
-              </CardText>
-            </Card>
-            <Card>
-              <CardTitle>Co-created relics</CardTitle>
-              <CardText>
-                Build powerful artifacts together that represent shared
-                achievements.
-              </CardText>
-            </Card>
-            <Card>
-              <CardTitle>Resource exchange</CardTitle>
-              <CardText>
-                Share and trade resources to help each Island grow and thrive.
-              </CardText>
-            </Card>
-            <Card>
-              <CardTitle>Diplomatic alliances</CardTitle>
-              <CardText>
-                Form strategic partnerships and alliances between communities.
-              </CardText>
-            </Card>
-          </ContentGrid>
-          <HighlightBox>
-            <HighlightText>
-              Your Island is sovereign—but never alone.
-            </HighlightText>
-          </HighlightBox>
-        </Section>
-
-        {/* 6. The Economy Layer */}
-        <Section id="economy">
-          <SectionTitle>🎁 A Living Digital Economy</SectionTitle>
-          <ContentGrid>
-            <Card>
-              <CardTitle>Realm-Native Assets</CardTitle>
-              <FeatureList>
-                <FeatureItem>Reputation</FeatureItem>
-                <FeatureItem>Badges</FeatureItem>
-                <FeatureItem>Roles</FeatureItem>
-                <FeatureItem>Community relics</FeatureItem>
-                <FeatureItem>Totem tiers</FeatureItem>
-              </FeatureList>
-              <CardText>
-                These are tied to your Island and reflect your culture. They
-                represent your standing within your community and cannot be
-                transferred between realms.
-              </CardText>
-            </Card>
-            <Card>
-              <CardTitle>Portable Global Assets</CardTitle>
-              <FeatureList>
-                <FeatureItem>Relics</FeatureItem>
-                <FeatureItem>Tools</FeatureItem>
-                <FeatureItem>Wearables</FeatureItem>
-                <FeatureItem>Seeds</FeatureItem>
-                <FeatureItem>Mounts/pets</FeatureItem>
-                <FeatureItem>Marketplace items</FeatureItem>
-              </FeatureList>
-              <CardText>
-                These travel between Islands through Hyperlane teleportation.
-                They represent your journey across the world and can be used
-                anywhere.
+                we form living networks of worlds that meaningfully support each other.
               </CardText>
             </Card>
           </ContentGrid>
         </Section>
 
-        {/* 7. What Makes It Special */}
-        <Section id="special">
-          <SectionTitle>✨ What Makes It Special</SectionTitle>
+        {/* The Relationship to the Your Land Network */}
+        <Section id="your-land">
+          <SectionTitle>The Relationship to the Your Land Network</SectionTitle>
+          <BodyTextLarge>
+            The Myth Network sits inside the broader Your Land Network, a protocol for digital self-sovereignty, community ownership, and creative autonomy.
+          </BodyTextLarge>
           <ContentGrid>
             <Card>
-              <CardTitle>For Creators</CardTitle>
-              <FeatureList>
-                <FeatureItem>
-                  Your work becomes part of the world's lore
-                </FeatureItem>
-                <FeatureItem>
-                  Your art unlocks quests and generates reputation
-                </FeatureItem>
-                <FeatureItem>
-                  Your community promotes you organically through the Totem
-                </FeatureItem>
-              </FeatureList>
+              <CardTitle>Your Land Network</CardTitle>
+              <CardText>
+                is the infrastructure.
+              </CardText>
             </Card>
             <Card>
-              <CardTitle>For Builders</CardTitle>
-              <FeatureList>
-                <FeatureItem>Build chainlet-native mini-worlds</FeatureItem>
-                <FeatureItem>
-                  Script quests, NPCs, items, rituals
-                </FeatureItem>
-                <FeatureItem>
-                  Extend the world with your own mechanics
-                </FeatureItem>
-              </FeatureList>
-            </Card>
-            <Card>
-              <CardTitle>For Communities</CardTitle>
-              <FeatureList>
-                <FeatureItem>Grow reputation together</FeatureItem>
-                <FeatureItem>Create rituals and events</FeatureItem>
-                <FeatureItem>
-                  Connect with other Islands on your own terms
-                </FeatureItem>
-              </FeatureList>
-            </Card>
-            <Card>
-              <CardTitle>For Ecosystem Partners</CardTitle>
-              <FeatureList>
-                <FeatureItem>Chainlet-per-Island architecture</FeatureItem>
-                <FeatureItem>Cross-realm messaging</FeatureItem>
-                <FeatureItem>Composable lore + assets</FeatureItem>
-                <FeatureItem>Real-world activation at IRL events</FeatureItem>
-              </FeatureList>
+              <CardTitle>Myth Network</CardTitle>
+              <CardText>
+                is the mythic experience built on top of it.
+              </CardText>
             </Card>
           </ContentGrid>
+          <BodyText>
+            Your Land gives communities their land, identity, and tools.
+          </BodyText>
+          <BodyText>
+            Myth Network turns those tools into worlds, quests, and adventures.
+          </BodyText>
         </Section>
 
-        {/* 8. How It's Built */}
-        <Section id="tech">
-          <SectionTitle>🔧 Under the hood</SectionTitle>
-          <SectionSubtitle>
-            Mystic Island is built on cutting-edge blockchain technology
-            designed for sovereignty, scalability, and interoperability.
-          </SectionSubtitle>
-          <TechGrid>
-            <TechItem>
-              <TechName>Saga Chainlets</TechName>
-              <TechDesc>
-                Every Island is its own sovereign chain, giving communities
-                complete control over their realm's rules and governance.
-              </TechDesc>
-            </TechItem>
-            <TechItem>
-              <TechName>Hyperlane</TechName>
-              <TechDesc>
-                Cross-realm teleportation for assets and explorers, enabling
-                seamless travel between Islands.
-              </TechDesc>
-            </TechItem>
-            <TechItem>
-              <TechName>Symbiotic Relay</TechName>
-              <TechDesc>
-                Totem Power staking + slashing mechanism that ensures security
-                while protecting your Totem itself.
-              </TechDesc>
-            </TechItem>
-            <TechItem>
-              <TechName>ENS</TechName>
-              <TechDesc>
-                Community member identities tied to Ethereum Name Service for
-                portable, recognizable identities.
-              </TechDesc>
-            </TechItem>
-            <TechItem>
-              <TechName>XMTP</TechName>
-              <TechDesc>
-                NPC messages, diplomatic envoys, quest updates, and
-                cross-realm communication.
-              </TechDesc>
-            </TechItem>
-            <TechItem>
-              <TechName>Oasis</TechName>
-              <TechDesc>
-                Private rituals + sealed lore for communities that want
-                exclusive, encrypted content.
-              </TechDesc>
-            </TechItem>
-            <TechItem>
-              <TechName>Hardhat</TechName>
-              <TechDesc>
-                Developer tools for islands, making it easy to build custom
-                mechanics and integrations.
-              </TechDesc>
-            </TechItem>
-          </TechGrid>
+        {/* Mystic Island: The First Living Realm */}
+        <Section id="mystic-island">
+          <SectionTitle>Mystic Island: The First Living Realm</SectionTitle>
+          <BodyTextLarge>
+            The first official realm of the Myth Network is Mystic Island—a lush, vibrant world shaped by creativity, collaboration, and the spiritual energy of its communities.
+          </BodyTextLarge>
+          <BodyText>
+            Mystic Island acts as:
+          </BodyText>
+          <ContentGrid>
+            <Card>
+              <CardTitle>the narrative entry point</CardTitle>
+            </Card>
+            <Card>
+              <CardTitle>the tutorial realm</CardTitle>
+            </Card>
+            <Card>
+              <CardTitle>the gathering place</CardTitle>
+            </Card>
+            <Card>
+              <CardTitle>the first playground for quests and totem-building</CardTitle>
+            </Card>
+          </ContentGrid>
+          <BodyText>
+            It is the birthplace of the Myth Network mythos.
+          </BodyText>
+          <HighlightBox>
+            <HighlightText>
+              <strong>More realms will emerge as more communities join.</strong>
+            </HighlightText>
+          </HighlightBox>
         </Section>
 
-        {/* CTA Section */}
-        <Section>
-          <SectionTitle>🌱 Ready to Build Your Realm?</SectionTitle>
-          <SectionSubtitle>
-            Create your Island, gather your community, and begin building your
-            Totem.
-          </SectionSubtitle>
+        {/* A Universe That Grows With Its People */}
+        <Section id="growing-universe">
+          <SectionTitle>A Universe That Grows With Its People</SectionTitle>
+          <BodyTextLarge>
+            The Myth Network is designed to expand as communities do.
+          </BodyTextLarge>
+          <BodyText>
+            Every new realm adds:
+          </BodyText>
+          <UnorderedList>
+            <ListItem>new portals</ListItem>
+            <ListItem>new creative styles</ListItem>
+            <ListItem>new totem mechanics</ListItem>
+            <ListItem>new challenges</ListItem>
+            <ListItem>new cultural influences</ListItem>
+            <ListItem>new connections</ListItem>
+          </UnorderedList>
+          <BodyText>
+            The universe becomes richer with every participating community.
+          </BodyText>
+        </Section>
+
+        {/* Join the Myth Network */}
+        <Section id="join">
+          <SectionTitle>Join the Myth Network</SectionTitle>
+          <IntroText>
+            Forge your realm.
+          </IntroText>
+          <IntroText>
+            Build your totem.
+          </IntroText>
+          <IntroText>
+            Open your portals.
+          </IntroText>
+          <IntroText>
+            Grow across worlds.
+          </IntroText>
+          <IntroText style={{ color: colors.sunlitGold, fontWeight: 600, marginTop: 32 }}>
+            Your myth begins here.
+          </IntroText>
           <ButtonGroup>
-            <PrimaryButton href="/deploy-wallet">Start Your Island</PrimaryButton>
-            <PrimaryButton
-              href="https://discord.gg/mysticisland"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Join Mystic Island Discord
-            </PrimaryButton>
+            <PrimaryButton href="/">→ Enter the Myth Network</PrimaryButton>
+            <PrimaryButton href="/deploy-wallet">→ Explore Mystic Island</PrimaryButton>
           </ButtonGroup>
         </Section>
 
