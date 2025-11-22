@@ -21,5 +21,8 @@
     "ethers": "^6.14.0",
     "hardhat": "^3.0.15",
     "typescript": ">=4.7.0"
+  },
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.4.0"
   }
 }
