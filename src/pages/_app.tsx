@@ -1,5 +1,6 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
+import { useRouter } from "next/router";
 import { CDPReactProvider, type Config, type Theme } from "@coinbase/cdp-react";
 import { CDPHooksProvider } from "@coinbase/cdp-hooks";
 import Navigation from "@/components/Navigation";
@@ -40,10 +41,13 @@ const theme: Partial<Theme> = {
 };
 
 export default function App({ Component, pageProps }: AppProps) {
+  const router = useRouter();
+  const isHomePage = router.pathname === '/';
+
   return (
     <CDPHooksProvider config={config}>
       <CDPReactProvider config={config} theme={theme}>
-        <Navigation />
+        {!isHomePage && <Navigation />}
         <Component {...pageProps} />
       </CDPReactProvider>
     </CDPHooksProvider>
