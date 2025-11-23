@@ -1,7 +1,7 @@
 import Head from "next/head";
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
 import styled, { keyframes } from "styled-components";
-import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
+import { Cinzel, Inter } from "next/font/google";
 import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
 import { AuthButton } from "@coinbase/cdp-react";
 import { useIslandMythos } from "@/hooks/useIslandMythos";
@@ -13,13 +13,6 @@ const cinzel = Cinzel({
   subsets: ["latin"],
   weight: ["400", "600", "700"],
   variable: "--font-cinzel",
-  display: "swap",
-});
-
-const cormorant = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  variable: "--font-cormorant",
   display: "swap",
 });
 
@@ -102,63 +95,39 @@ const LoadingText = styled.p`
   font-size: 1.1rem;
 `;
 
-const Button = styled.a`
-  display: inline-block;
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, ${colors.sunlitGold} 0%, ${colors.sunsetOrange} 100%);
-  border: none;
-  border-radius: 8px;
-  color: ${colors.textPrimary};
-  font-size: 1rem;
-  font-weight: 600;
-  text-decoration: none;
-  transition: all 0.3s ease;
-  margin-top: 1rem;
-  cursor: pointer;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(232, 168, 85, 0.3);
-  }
-`;
-
 export default function StartPage() {
   const { isSignedIn } = useIsSignedIn();
   const { evmAddress } = useEvmAddress();
   const { mythos, isLoading: mythosLoading } = useIslandMythos();
   const router = useRouter();
-  const [isChecking, setIsChecking] = useState(true);
 
   // Check if mythos contract is deployed
-  const isMythosDeployed = CONTRACT_ADDRESSES.ISLAND_MYTHOS !== "0x0000000000000000000000000000000000000000";
+  const isMythosDeployed = (CONTRACT_ADDRESSES.ISLAND_MYTHOS as string) !== "0x0000000000000000000000000000000000000000";
+
+  // Compute checking state - we're done checking if we're signed in and not loading mythos
+  const isChecking = isSignedIn && mythosLoading;
 
   useEffect(() => {
-    // If not signed in, show auth
-    if (!isSignedIn) {
-      setIsChecking(false);
+    // Only handle routing if we're signed in and done loading
+    if (!isSignedIn || mythosLoading) {
       return;
     }
 
-    // If signed in, check mythos status
-    if (isSignedIn && !mythosLoading) {
-      setIsChecking(false);
+    // If mythos contract is not deployed, stay on this page (show message)
+    if (!isMythosDeployed) {
+      return;
+    }
 
-      // If mythos contract is not deployed, stay on this page (show message)
-      if (!isMythosDeployed) {
-        return;
-      }
+    // If mythos is not initialized, route to onboarding
+    if (mythos && !mythos.initialized) {
+      router.push("/onboarding");
+      return;
+    }
 
-      // If mythos is not initialized, route to onboarding
-      if (isMythosDeployed && mythos && !mythos.initialized) {
-        router.push("/onboarding");
-        return;
-      }
-
-      // If mythos is initialized, route to dashboard
-      if (isMythosDeployed && mythos && mythos.initialized) {
-        router.push("/dashboard");
-        return;
-      }
+    // If mythos is initialized, route to dashboard
+    if (mythos && mythos.initialized) {
+      router.push("/dashboard");
+      return;
     }
   }, [isSignedIn, mythos, mythosLoading, isMythosDeployed, router]);
 

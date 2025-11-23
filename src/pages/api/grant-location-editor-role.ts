@@ -35,7 +35,8 @@ export default async function handler(
     });
   }
 
-  if (CONTRACT_ADDRESSES.LOCATION_REGISTRY === "0x0000000000000000000000000000000000000000") {
+  const locationRegistryAddress = CONTRACT_ADDRESSES.LOCATION_REGISTRY as string;
+  if (locationRegistryAddress === "0x0000000000000000000000000000000000000000" || !locationRegistryAddress) {
     return res.status(400).json({
       success: false,
       error: "LocationRegistry contract not deployed yet. Please deploy contracts first.",

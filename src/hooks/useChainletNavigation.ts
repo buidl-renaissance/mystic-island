@@ -13,10 +13,10 @@ export interface ChainletConfig {
   };
   rpcUrls: {
     default: {
-      http: string[];
+      http: readonly string[];
     };
     public: {
-      http: string[];
+      http: readonly string[];
     };
   };
   blockExplorers: {

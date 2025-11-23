@@ -591,7 +591,7 @@ export default function ContractsPage() {
             </ContractCard>
 
             {/* IslandMythos */}
-            {CONTRACT_ADDRESSES.ISLAND_MYTHOS !== "0x0000000000000000000000000000000000000000" && (
+            {(CONTRACT_ADDRESSES.ISLAND_MYTHOS as string) !== "0x0000000000000000000000000000000000000000" && (
               <ContractCard>
                 <ContractHeader>
                   <ContractName>Island Mythos</ContractName>
@@ -646,7 +646,7 @@ export default function ContractsPage() {
             )}
 
             {/* LocationRegistry */}
-            {CONTRACT_ADDRESSES.LOCATION_REGISTRY !== "0x0000000000000000000000000000000000000000" && (
+            {(CONTRACT_ADDRESSES.LOCATION_REGISTRY as string) !== "0x0000000000000000000000000000000000000000" && (
               <ContractCard>
                 <ContractHeader>
                   <ContractName>Location Registry</ContractName>

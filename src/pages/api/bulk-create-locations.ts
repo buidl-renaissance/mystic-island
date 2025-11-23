@@ -109,7 +109,7 @@ export default async function handler(
             location.description,
             location.biome,
             location.difficulty,
-            parentId,
+            BigInt(parentId),
             ipfsData.sceneURI,
             location.controller as `0x${string}`,
             ipfsData.metadataURI,

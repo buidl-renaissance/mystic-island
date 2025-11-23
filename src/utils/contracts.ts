@@ -56,7 +56,7 @@ export const LORD_SMEARINGON_CHAINLET = {
 } as const;
 
 // Chainlet registry mapping chainlet ID to configuration
-export const CHAINLET_REGISTRY: Record<number, typeof SAGA_CHAINLET> = {
+export const CHAINLET_REGISTRY: Record<number, typeof SAGA_CHAINLET | typeof LORD_SMEARINGON_CHAINLET> = {
   [SAGA_CHAINLET.id]: SAGA_CHAINLET,
   [LORD_SMEARINGON_CHAINLET.id]: LORD_SMEARINGON_CHAINLET,
 };

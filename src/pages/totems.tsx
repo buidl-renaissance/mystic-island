@@ -246,7 +246,7 @@ export default function TotemsPage() {
               <LoadingMessage>Loading totems...</LoadingMessage>
             ) : totems.length === 0 ? (
               <EmptyState>
-                <p>You don't have any totems yet.</p>
+                <p>You don&apos;t have any totems yet.</p>
                 <ActionButton href="/create-totem">Create Your First Totem</ActionButton>
               </EmptyState>
             ) : (

@@ -94,7 +94,7 @@ export default async function handler(
 
     // Upload metadata to IPFS
     console.log("Uploading metadata to IPFS...");
-    const metadataIpfsHash = await uploadMetadataToIPFS(metadata, `location-metadata-${Date.now()}`);
+    const metadataIpfsHash = await uploadMetadataToIPFS(metadata as unknown as Record<string, unknown>, `location-metadata-${Date.now()}`);
     const metadataIpfsUrl = getIpfsProtocolUrl(metadataIpfsHash);
 
     console.log("Metadata uploaded to IPFS:", metadataIpfsHash);

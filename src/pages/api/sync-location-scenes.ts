@@ -4,22 +4,22 @@ import { CONTRACT_ADDRESSES, SAGA_CHAINLET, LOCATION_REGISTRY_ABI } from "@/util
 import { promises as fs } from "fs";
 import path from "path";
 
-type ResponseData = {
-  success: boolean;
-  synced?: number;
-  scenes?: Record<string, string>;
-  error?: string;
-};
-
-// Path to the location scenes JSON file
-const SCENES_FILE_PATH = path.join(process.cwd(), "src/data/location-scenes.json");
-
 interface LocationScene {
   slug: string;
   sceneURI: string;
   displayName: string;
   metadataURI?: string;
 }
+
+type ResponseData = {
+  success: boolean;
+  synced?: number;
+  scenes?: Record<string, LocationScene>;
+  error?: string;
+};
+
+// Path to the location scenes JSON file
+const SCENES_FILE_PATH = path.join(process.cwd(), "src/data/location-scenes.json");
 
 export default async function handler(
   req: NextApiRequest,
@@ -29,7 +29,8 @@ export default async function handler(
     return res.status(405).json({ success: false, error: "Method not allowed" });
   }
 
-  if (CONTRACT_ADDRESSES.LOCATION_REGISTRY === "0x0000000000000000000000000000000000000000") {
+  const locationRegistryAddress = CONTRACT_ADDRESSES.LOCATION_REGISTRY as string;
+  if (locationRegistryAddress === "0x0000000000000000000000000000000000000000" || !locationRegistryAddress) {
     return res.status(400).json({
       success: false,
       error: "LocationRegistry contract not deployed yet.",
@@ -38,7 +39,7 @@ export default async function handler(
 
   try {
     const publicClient = createPublicClient({
-      chain: SAGA_CHAINLET as any,
+      chain: SAGA_CHAINLET,
       transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
     });
 

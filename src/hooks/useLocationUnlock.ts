@@ -23,7 +23,8 @@ export function useLocationUnlock() {
 
   // Fetch unlocked locations for the current player
   const fetchUnlockedLocations = useCallback(async () => {
-    if (!evmAddress || CONTRACT_ADDRESSES.LOCATION_UNLOCK === "0x0000000000000000000000000000000000000000") {
+    const locationUnlockAddress = CONTRACT_ADDRESSES.LOCATION_UNLOCK as string;
+    if (!evmAddress || locationUnlockAddress === "0x0000000000000000000000000000000000000000" || !locationUnlockAddress) {
       setIsLoading(false);
       return;
     }
@@ -123,7 +124,8 @@ export function useLocationUnlock() {
   // Check if a location is unlocked
   const checkUnlocked = useCallback(
     async (locationId: bigint): Promise<boolean> => {
-      if (!evmAddress || CONTRACT_ADDRESSES.LOCATION_UNLOCK === "0x0000000000000000000000000000000000000000") {
+      const locationUnlockAddress = CONTRACT_ADDRESSES.LOCATION_UNLOCK as string;
+      if (!evmAddress || locationUnlockAddress === "0x0000000000000000000000000000000000000000" || !locationUnlockAddress) {
         return false;
       }
 
@@ -162,7 +164,8 @@ export function useLocationUnlock() {
         throw new Error("No wallet connected");
       }
 
-      if (CONTRACT_ADDRESSES.LOCATION_UNLOCK === "0x0000000000000000000000000000000000000000") {
+      const locationUnlockAddress = CONTRACT_ADDRESSES.LOCATION_UNLOCK as string;
+      if (locationUnlockAddress === "0x0000000000000000000000000000000000000000" || !locationUnlockAddress) {
         throw new Error("LocationUnlock contract not deployed");
       }
 
@@ -174,13 +177,19 @@ export function useLocationUnlock() {
       const sendTransaction = async (data: `0x${string}`, to: `0x${string}`) => {
         const evmAccount = currentUser?.evmAccounts?.[0];
         if (evmAccount) {
+          // Extract address - evmAccount might be an object with .address or just the address string
+          const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+          if (!accountAddress) {
+            throw new Error("No EOA account address available. Please ensure you're properly connected.");
+          }
+          
           const gasPrice = await publicClient.getGasPrice();
           const nonce = await publicClient.getTransactionCount({
-            address: evmAccount.address as `0x${string}`,
+            address: accountAddress,
           });
 
           const gasEstimate = await publicClient.estimateGas({
-            account: evmAccount.address as `0x${string}`,
+            account: accountAddress,
             to,
             data,
             value: 0n,

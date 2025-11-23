@@ -290,6 +290,12 @@ export default function TotemDetailPage() {
   const sendTransaction = async (data: `0x${string}`, to: `0x${string}`) => {
     const evmAccount = currentUser?.evmAccounts?.[0];
     if (evmAccount) {
+      // Extract address - evmAccount might be an object with .address or just the address string
+      const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+      if (!accountAddress) {
+        throw new Error("No EOA account address available. Please ensure you're properly connected.");
+      }
+      
       const publicClient = createPublicClient({
         chain: SAGA_CHAINLET as any,
         transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
@@ -297,11 +303,11 @@ export default function TotemDetailPage() {
 
       const gasPrice = await publicClient.getGasPrice();
       const nonce = await publicClient.getTransactionCount({
-        address: evmAccount.address as `0x${string}`,
+        address: accountAddress,
       });
 
       const gasEstimate = await publicClient.estimateGas({
-        account: evmAccount.address as `0x${string}`,
+        account: accountAddress,
         to,
         data,
         value: 0n,

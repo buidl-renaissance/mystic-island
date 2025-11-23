@@ -145,7 +145,8 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (CONTRACT_ADDRESSES.ISLAND_MYTHOS === "0x0000000000000000000000000000000000000000") {
+    const islandMythosAddress = CONTRACT_ADDRESSES.ISLAND_MYTHOS as string;
+    if (islandMythosAddress === "0x0000000000000000000000000000000000000000" || !islandMythosAddress) {
       setError("IslandMythos contract not deployed yet. Please deploy contracts first.");
       return;
     }
@@ -172,19 +173,19 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
 
       // Prioritize embedded wallet for Saga chainlet transactions
       // MetaMask is only used as a fallback if embedded wallet is not available
-      const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : null;
+      const ethereum = typeof window !== 'undefined' ? (window as Window & { ethereum?: { isMetaMask?: boolean; isCoinbaseWallet?: boolean; selectedAddress?: string; request?: (args: { method: string; params?: unknown[] }) => Promise<unknown[]> } }).ethereum : null;
       const useMetaMask = ethereum && (ethereum.isMetaMask || (!ethereum.isCoinbaseWallet && ethereum.selectedAddress));
       
       // Try embedded wallet first (for Saga chainlet)
       if (evmAccount) {
         // Extract address - evmAccount might be an object with .address or just the address string
-        const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+        const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as { address?: string }).address) as `0x${string}`;
         if (!accountAddress) {
           throw new Error("No EOA account address available. Please ensure you're properly connected.");
         }
         
         const publicClient = createPublicClient({
-          chain: SAGA_CHAINLET as any,
+          chain: SAGA_CHAINLET,
           transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
         });
 
@@ -223,21 +224,21 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
           serializedTransaction: signedTransaction,
         });
         console.log("Mythos initialization via embedded wallet:", hash);
-      } else if (useMetaMask) {
+      } else if (useMetaMask && ethereum?.request) {
         // Fallback to MetaMask if embedded wallet is not available
         // Use MetaMask for signing
         const publicClient = createPublicClient({
-          chain: SAGA_CHAINLET as any,
+          chain: SAGA_CHAINLET,
           transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
         });
 
         const walletClient = createWalletClient({
-          chain: SAGA_CHAINLET as any,
-          transport: custom(ethereum),
+          chain: SAGA_CHAINLET,
+          transport: custom(ethereum as unknown as { request: (...args: unknown[]) => Promise<unknown> }),
         });
 
         // Request account access
-        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' }) as string[];
         const accountAddress = accounts[0] as `0x${string}`;
 
         // Get gas estimates (MetaMask handles nonce automatically)
@@ -253,7 +254,7 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
         // Send transaction via MetaMask
         hash = await walletClient.sendTransaction({
           account: accountAddress,
-          chain: SAGA_CHAINLET as any,
+          chain: SAGA_CHAINLET,
           to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
           data: data as `0x${string}`,
           value: 0n,
@@ -268,7 +269,7 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
         try {
           const result = await sendUserOperation({
             evmSmartAccount: smartAccount,
-            network: SAGA_CHAINLET.id.toString() as any, // Try chain ID as string
+            network: SAGA_CHAINLET.id.toString() as never, // Saga chainlet not supported by sendUserOperation
             calls: [
               {
                 to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
@@ -372,7 +373,7 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
         <FormGroup>
           <Label htmlFor="loreImage">Lore Image (Upload to IPFS)</Label>
           <p style={{ color: colors.textMuted, fontSize: "0.85rem", marginBottom: "0.5rem" }}>
-            Upload an image representing the realm's lore. AI will generate metadata and the URI will be auto-filled below.
+            Upload an image representing the realm&apos;s lore. AI will generate metadata and the URI will be auto-filled below.
           </p>
           <ImageUpload
             onUploadComplete={(metadata) => {

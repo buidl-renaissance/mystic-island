@@ -67,6 +67,12 @@ export function useContractData() {
           transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
         });
 
+        // Extract addresses as strings for comparison
+        const islandMythosAddress = CONTRACT_ADDRESSES.ISLAND_MYTHOS as string;
+        const locationRegistryAddress = CONTRACT_ADDRESSES.LOCATION_REGISTRY as string;
+        const isIslandMythosDeployed = islandMythosAddress !== "0x0000000000000000000000000000000000000000" && islandMythosAddress;
+        const isLocationRegistryDeployed = locationRegistryAddress !== "0x0000000000000000000000000000000000000000" && locationRegistryAddress;
+
         // Fetch all contract data in parallel
         const [
           magicName,
@@ -160,38 +166,38 @@ export function useContractData() {
             })
             .catch(() => null),
           // IslandMythos (only if deployed)
-          CONTRACT_ADDRESSES.ISLAND_MYTHOS !== "0x0000000000000000000000000000000000000000"
+          isIslandMythosDeployed
             ? publicClient
                 .readContract({
-                  address: CONTRACT_ADDRESSES.ISLAND_MYTHOS,
+                  address: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
                   abi: ISLAND_MYTHOS_ABI,
                   functionName: "isInitialized",
                 })
                 .catch(() => null)
             : Promise.resolve(null),
-          CONTRACT_ADDRESSES.ISLAND_MYTHOS !== "0x0000000000000000000000000000000000000000"
+          isIslandMythosDeployed
             ? publicClient
                 .readContract({
-                  address: CONTRACT_ADDRESSES.ISLAND_MYTHOS,
+                  address: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
                   abi: ISLAND_MYTHOS_ABI,
                   functionName: "isLocked",
                 })
                 .catch(() => null)
             : Promise.resolve(null),
-          CONTRACT_ADDRESSES.ISLAND_MYTHOS !== "0x0000000000000000000000000000000000000000"
+          isIslandMythosDeployed
             ? publicClient
                 .readContract({
-                  address: CONTRACT_ADDRESSES.ISLAND_MYTHOS,
+                  address: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
                   abi: ISLAND_MYTHOS_ABI,
                   functionName: "islandName",
                 })
                 .catch(() => null)
             : Promise.resolve(null),
           // LocationRegistry (only if deployed)
-          CONTRACT_ADDRESSES.LOCATION_REGISTRY !== "0x0000000000000000000000000000000000000000"
+          isLocationRegistryDeployed
             ? publicClient
                 .readContract({
-                  address: CONTRACT_ADDRESSES.LOCATION_REGISTRY,
+                  address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
                   abi: LOCATION_REGISTRY_ABI,
                   functionName: "totalLocations",
                 })

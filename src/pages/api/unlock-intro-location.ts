@@ -47,12 +47,12 @@ export default async function handler(
     
     const client = createWalletClient({
       account,
-      chain: SAGA_CHAINLET as any,
+      chain: SAGA_CHAINLET,
       transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
     });
 
     // Explorer's Main Path location ID is 1 (root location, unlocked by first artifact)
-    const explorersMainPathId = 1;
+    const explorersMainPathId = 1n;
 
     // Encode the adminUnlockLocation function call
     const data = encodeFunctionData({

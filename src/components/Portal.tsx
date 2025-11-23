@@ -120,7 +120,8 @@ export default function Portal({ locationId, locationSlug }: PortalProps) {
   // Find portal for this location
   useEffect(() => {
     async function findPortal() {
-      if (!isPlanetarium || CONTRACT_ADDRESSES.PORTAL === "0x0000000000000000000000000000000000000000") {
+      const portalAddress = CONTRACT_ADDRESSES.PORTAL as string;
+      if (!isPlanetarium || portalAddress === "0x0000000000000000000000000000000000000000" || !portalAddress) {
         return;
       }
 
@@ -167,13 +168,19 @@ export default function Portal({ locationId, locationSlug }: PortalProps) {
       const sendTransaction = async (data: `0x${string}`, to: `0x${string}`) => {
         const evmAccount = currentUser?.evmAccounts?.[0];
         if (evmAccount) {
+          // Extract address - evmAccount might be an object with .address or just the address string
+          const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+          if (!accountAddress) {
+            throw new Error("No EOA account address available. Please ensure you're properly connected.");
+          }
+          
           const gasPrice = await publicClient.getGasPrice();
           const nonce = await publicClient.getTransactionCount({
-            address: evmAccount.address as `0x${string}`,
+            address: accountAddress,
           });
 
           const gasEstimate = await publicClient.estimateGas({
-            account: evmAccount.address as `0x${string}`,
+            account: accountAddress,
             to,
             data,
             value: 0n,

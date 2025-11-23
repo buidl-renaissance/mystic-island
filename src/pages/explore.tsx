@@ -1,5 +1,4 @@
 import Head from "next/head";
-import { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
 import { useIsSignedIn } from "@coinbase/cdp-hooks";
@@ -115,15 +114,6 @@ const Card = styled.div`
     border-color: rgba(232, 168, 85, 0.6);
     box-shadow: 0 8px 32px rgba(232, 168, 85, 0.2);
   }
-`;
-
-const SectionTitle = styled.h2`
-  font-size: 1.8rem;
-  color: ${colors.sunlitGold};
-  margin-bottom: 1.5rem;
-  ${cormorant.variable}
-  font-family: var(--font-cormorant);
-  font-weight: 600;
 `;
 
 const LocationsGrid = styled.div`
@@ -244,30 +234,6 @@ const ErrorMessage = styled.div`
   color: ${colors.sunsetOrange};
   margin-bottom: 1rem;
 `;
-
-// Biome type names
-const BIOME_NAMES: Record<number, string> = {
-  0: "Unknown",
-  1: "Meadow",
-  2: "Forest",
-  3: "Marsh",
-  4: "Mountain",
-  5: "Beach",
-  6: "Ruins",
-  7: "Bazaar",
-  8: "Shrine",
-  9: "Cave",
-  10: "Custom",
-};
-
-// Difficulty tier names
-const DIFFICULTY_NAMES: Record<number, string> = {
-  0: "None",
-  1: "Easy",
-  2: "Normal",
-  3: "Hard",
-  4: "Mythic",
-};
 
 export default function ExplorePage() {
   const { isSignedIn } = useIsSignedIn();

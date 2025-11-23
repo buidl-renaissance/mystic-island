@@ -23,7 +23,8 @@ export function useLocationRegistry() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchLocations = async () => {
-      if (CONTRACT_ADDRESSES.LOCATION_REGISTRY === "0x0000000000000000000000000000000000000000") {
+      const locationRegistryAddress = CONTRACT_ADDRESSES.LOCATION_REGISTRY as string;
+      if (locationRegistryAddress === "0x0000000000000000000000000000000000000000" || !locationRegistryAddress) {
         setIsLoading(false);
         return;
       }

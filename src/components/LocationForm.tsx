@@ -251,7 +251,8 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (CONTRACT_ADDRESSES.LOCATION_REGISTRY === "0x0000000000000000000000000000000000000000") {
+    const locationRegistryAddress = CONTRACT_ADDRESSES.LOCATION_REGISTRY as string;
+    if (locationRegistryAddress === "0x0000000000000000000000000000000000000000" || !locationRegistryAddress) {
       setError("LocationRegistry contract not deployed yet. Please deploy contracts first.");
       return;
     }

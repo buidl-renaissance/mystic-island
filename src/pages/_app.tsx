@@ -105,7 +105,7 @@ const StatEmoji = styled.span`
   line-height: 1;
 `;
 
-function AppContent({ Component, pageProps }: AppProps) {
+function AppContent({ Component, pageProps }: { Component: AppProps['Component']; pageProps: AppProps['pageProps'] }) {
   const router = useRouter();
   const { isSignedIn } = useIsSignedIn();
   const { artifactCount, magicBalance, isLoading: statsLoading } = useUserStats();

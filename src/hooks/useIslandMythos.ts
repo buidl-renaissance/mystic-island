@@ -18,7 +18,8 @@ export function useIslandMythos() {
   const [error, setError] = useState<string | null>(null);
 
   const fetchMythos = async () => {
-    if (CONTRACT_ADDRESSES.ISLAND_MYTHOS === "0x0000000000000000000000000000000000000000") {
+    const islandMythosAddress = CONTRACT_ADDRESSES.ISLAND_MYTHOS as string;
+    if (islandMythosAddress === "0x0000000000000000000000000000000000000000" || !islandMythosAddress) {
       setIsLoading(false);
       setMythos(null);
       return;

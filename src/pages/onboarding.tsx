@@ -124,7 +124,8 @@ export default function OnboardingPage() {
   useEffect(() => {
     if (!isLoading) {
       // If contract not deployed, redirect to start
-      if (CONTRACT_ADDRESSES.ISLAND_MYTHOS === "0x0000000000000000000000000000000000000000") {
+      const islandMythosAddress = CONTRACT_ADDRESSES.ISLAND_MYTHOS as string;
+      if (islandMythosAddress === "0x0000000000000000000000000000000000000000" || !islandMythosAddress) {
         router.push("/start");
         return;
       }
