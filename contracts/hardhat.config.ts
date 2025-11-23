@@ -28,6 +28,7 @@ export default defineConfig({
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts",
+    ignition: "./ignition",
   },
   networks: {
     hardhatMainnet: {

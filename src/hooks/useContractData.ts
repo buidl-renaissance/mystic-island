@@ -8,6 +8,8 @@ import {
   TOTEM_MANAGER_ABI,
   QUEST_MANAGER_ABI,
   TRIBE_MANAGER_ABI,
+  ISLAND_MYTHOS_ABI,
+  LOCATION_REGISTRY_ABI,
 } from "@/utils/contracts";
 
 interface ContractData {
@@ -31,6 +33,14 @@ interface ContractData {
   questManager: {
     attestor: string | null;
   };
+  islandMythos: {
+    initialized: boolean | null;
+    locked: boolean | null;
+    islandName: string | null;
+  };
+  locationRegistry: {
+    totalLocations: string | null;
+  };
 }
 
 export function useContractData() {
@@ -40,6 +50,8 @@ export function useContractData() {
     tribeManager: { nextTribeId: null, nextJoinRequestId: null },
     totemManager: { nextTotemId: null },
     questManager: { attestor: null },
+    islandMythos: { initialized: null, locked: null, islandName: null },
+    locationRegistry: { totalLocations: null },
   });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,6 +79,10 @@ export function useContractData() {
           tribeNextRequestId,
           totemNextId,
           questAttestor,
+          mythosInitialized,
+          mythosLocked,
+          mythosIslandName,
+          locationTotal,
         ] = await Promise.all([
           // MagicToken
           publicClient
@@ -143,6 +159,44 @@ export function useContractData() {
               functionName: "attestor",
             })
             .catch(() => null),
+          // IslandMythos (only if deployed)
+          CONTRACT_ADDRESSES.ISLAND_MYTHOS !== "0x0000000000000000000000000000000000000000"
+            ? publicClient
+                .readContract({
+                  address: CONTRACT_ADDRESSES.ISLAND_MYTHOS,
+                  abi: ISLAND_MYTHOS_ABI,
+                  functionName: "isInitialized",
+                })
+                .catch(() => null)
+            : Promise.resolve(null),
+          CONTRACT_ADDRESSES.ISLAND_MYTHOS !== "0x0000000000000000000000000000000000000000"
+            ? publicClient
+                .readContract({
+                  address: CONTRACT_ADDRESSES.ISLAND_MYTHOS,
+                  abi: ISLAND_MYTHOS_ABI,
+                  functionName: "isLocked",
+                })
+                .catch(() => null)
+            : Promise.resolve(null),
+          CONTRACT_ADDRESSES.ISLAND_MYTHOS !== "0x0000000000000000000000000000000000000000"
+            ? publicClient
+                .readContract({
+                  address: CONTRACT_ADDRESSES.ISLAND_MYTHOS,
+                  abi: ISLAND_MYTHOS_ABI,
+                  functionName: "islandName",
+                })
+                .catch(() => null)
+            : Promise.resolve(null),
+          // LocationRegistry (only if deployed)
+          CONTRACT_ADDRESSES.LOCATION_REGISTRY !== "0x0000000000000000000000000000000000000000"
+            ? publicClient
+                .readContract({
+                  address: CONTRACT_ADDRESSES.LOCATION_REGISTRY,
+                  abi: LOCATION_REGISTRY_ABI,
+                  functionName: "totalLocations",
+                })
+                .catch(() => null)
+            : Promise.resolve(null),
         ]);
 
         setData({
@@ -176,6 +230,15 @@ export function useContractData() {
           },
           questManager: {
             attestor: questAttestor as string | null,
+          },
+          islandMythos: {
+            initialized: mythosInitialized as boolean | null,
+            locked: mythosLocked as boolean | null,
+            islandName: mythosIslandName as string | null,
+          },
+          locationRegistry: {
+            totalLocations:
+              locationTotal !== null ? (locationTotal as bigint).toString() : null,
           },
         });
       } catch (err) {

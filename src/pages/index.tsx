@@ -376,7 +376,7 @@ export default function Home() {
             Communities forge realms. Realms forge totems. Totems forge worlds.
           </HeroSubtitle>
           <ButtonGroup>
-            <PrimaryButton href="/deploy-wallet">Begin Your Journey</PrimaryButton>
+            <PrimaryButton href="/start">Begin Your Journey</PrimaryButton>
             <SecondaryButton href="/about">
               Learn More
             </SecondaryButton>

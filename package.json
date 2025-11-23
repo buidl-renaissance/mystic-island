@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "deploy": "cd contracts && npx hardhat ignition deploy ignition/modules/MysticIsland.ts --network saga",
+    "deploy:update-addresses": "cd contracts && npx hardhat run scripts/update-addresses.ts"
   },
   "dependencies": {
     "@coinbase/cdp-core": "^0.0.67",

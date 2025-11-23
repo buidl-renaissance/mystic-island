@@ -165,6 +165,26 @@ export default function Navigation() {
           >
             Review Requests
           </Link>
+          <Link
+            href="/onboarding"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Onboarding
+          </Link>
+          <Link
+            href="/create-location"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Create Location
+          </Link>
         </div>
       </div>
 

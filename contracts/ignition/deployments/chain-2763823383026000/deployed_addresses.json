@@ -1,0 +1,9 @@
+{
+  "MysticIslandModule#ArtifactCollection": "0x026B95562bFc5595338CCF086031002030d432b6",
+  "MysticIslandModule#IslandMythos": "0x2201c8897b855Fb25Ff019EBa1De8F28F6e723E6",
+  "MysticIslandModule#MagicToken": "0xFb1586097811Cc5040191376ac680e6d8a73d8b2",
+  "MysticIslandModule#LocationRegistry": "0x1A21d327041601670269540541e2717bc2BfDa24",
+  "MysticIslandModule#QuestManager": "0x961dC01330b6f554b10aB75952424Bc343065733",
+  "MysticIslandModule#TotemManager": "0x065f0cd076d85eA1811530015915Fd2826f143F4",
+  "MysticIslandModule#TribeManager": "0xa83210c8a77BbD021d65d8877D0F69182132339B"
+}

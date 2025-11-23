@@ -47,8 +47,10 @@ npx hardhat run scripts/check-network.ts --network saga
 
 ### 2. Deploy Contracts
 ```bash
-npx hardhat ignition deploy ignition/modules/MysticIsland.ts --network saga
+npx hardhat ignition deploy MysticIsland --network saga
 ```
+
+**Note:** Use just the module name (without path or `.ts` extension). Hardhat Ignition will automatically find it in `ignition/modules/`.
 
 ## Deployment Wallet
 

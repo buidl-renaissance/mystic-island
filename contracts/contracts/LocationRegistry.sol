@@ -2,7 +2,7 @@
 pragma solidity ^0.8.24;
 
 import "@openzeppelin/contracts/access/AccessControl.sol";
-import "./IIslandMythos.sol";
+import "./Mythos.sol";
 
 /**
  * @title LocationRegistry
@@ -50,7 +50,7 @@ contract LocationRegistry is AccessControl {
     uint256 private _nextLocationId = 1;
     mapping(uint256 => Location) private _locations;
     mapping(string => uint256) private _slugToId;
-    IIslandMythos public mythosContract;
+    Mythos public mythosContract;
 
     event LocationCreated(
         uint256 indexed id,
@@ -95,7 +95,7 @@ contract LocationRegistry is AccessControl {
     constructor(address admin_, address mythosContract_) {
         _grantRole(DEFAULT_ADMIN_ROLE, admin_);
         _grantRole(LOCATION_EDITOR_ROLE, admin_);
-        mythosContract = IIslandMythos(mythosContract_);
+        mythosContract = Mythos(mythosContract_);
     }
 
     /**

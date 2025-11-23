@@ -7,14 +7,17 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
  * 1. MagicToken - ERC20 token (needed by TotemManager and QuestManager)
  * 2. ArtifactCollection - ERC721 NFTs (needed by TotemManager and TribeManager)
  * 3. TribeManager - Manages tribes and initiation (needs ArtifactCollection)
- * 4. TotemManager - Manages totems (needs MagicToken and ArtifactCollection)
- * 5. QuestManager - Handles quest rewards (needs MagicToken)
+ * 4. IslandMythos - Foundational contract for island theme/lore
+ * 5. LocationRegistry - Manages locations (needs IslandMythos)
+ * 6. TotemManager - Manages totems (needs MagicToken and ArtifactCollection)
+ * 7. QuestManager - Handles quest rewards (needs MagicToken)
  * 
  * After deployment, you'll need to:
- * - Set QuestManager as a minter for MagicToken
- * - Set TribeManager as a minter for ArtifactCollection
- * - Set TotemManager as a minter for MagicToken (if needed)
- * - Set the attestor address for QuestManager
+ * - Set QuestManager as a minter for MagicToken (done automatically)
+ * - Set TribeManager as a minter for ArtifactCollection (done automatically)
+ * - Set the attestor address for QuestManager (optional, currently set to deployer)
+ * - Initialize IslandMythos via the onboarding flow (/onboarding)
+ * - Create locations via the create-location page (/create-location)
  */
 export default buildModule("MysticIslandModule", (m) => {
   // Get the deployer address (will be msg.sender)

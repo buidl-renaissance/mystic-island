@@ -2,10 +2,10 @@
 pragma solidity ^0.8.24;
 
 /**
- * @title IIslandMythos
- * @dev Interface for Island Mythos contract
+ * @title Mythos
+ * @dev Interface for Mythos contract
  */
-interface IIslandMythos {
+interface Mythos {
     function isInitialized() external view returns (bool);
     function isLocked() external view returns (bool);
     function islandName() external view returns (string memory);

@@ -39,15 +39,21 @@ This will show:
 
 Deploy all contracts:
 ```bash
-npx hardhat ignition deploy ignition/modules/MysticIsland.ts --network saga
+npx hardhat ignition deploy MysticIsland --network saga
 ```
+
+**Note:** Use just the module name (without path or `.ts` extension). Hardhat Ignition will automatically find it in `ignition/modules/`.
 
 This will:
 1. Deploy MagicToken
 2. Deploy ArtifactCollection  
-3. Deploy TotemManager
-4. Deploy QuestManager
-5. Set QuestManager as a minter for MagicToken
+3. Deploy TribeManager
+4. Deploy IslandMythos
+5. Deploy LocationRegistry
+6. Deploy TotemManager
+7. Deploy QuestManager
+8. Set QuestManager as a minter for MagicToken
+9. Set TribeManager as a minter for ArtifactCollection
 
 ### Step 4: Save Contract Addresses
 
@@ -55,11 +61,16 @@ After deployment, you'll see output like:
 ```
 Deployed MagicToken at: 0x...
 Deployed ArtifactCollection at: 0x...
+Deployed TribeManager at: 0x...
+Deployed IslandMythos at: 0x...
+Deployed LocationRegistry at: 0x...
 Deployed TotemManager at: 0x...
 Deployed QuestManager at: 0x...
 ```
 
-**Save these addresses!** You'll need them for your frontend/backend.
+**Save these addresses!** Update them in:
+- `src/utils/contracts.ts` - Update CONTRACT_ADDRESSES
+- `contracts/DEPLOYED_CONTRACTS.md` - Document the deployment
 
 ### Step 5: Update Attestor (Optional)
 

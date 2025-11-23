@@ -1,14 +1,14 @@
 # 🎉 Deployed Contracts - Mystic Island
 
-**Deployment Date:** November 22, 2025  
+**Deployment Date:** November 22, 2025
 **Network:** Saga Chainlet (mysticisland_2763823383026000-1)  
-**Deployer:** 0x7c56398b74c4619Bec4F13e8E80dEa0F578A03D4
+**Deployer:** TBD (New wallet - see deployment instructions)
 
 ## 📋 Contract Addresses
 
 ### MagicToken (ERC20)
 ```
-0xE04D9c01FeBe5c1600Fb983666e3692955625d81
+0xFb1586097811Cc5040191376ac680e6d8a73d8b2
 ```
 - **Name:** Magic
 - **Symbol:** MAGIC
@@ -16,27 +16,48 @@
 
 ### ArtifactCollection (ERC721)
 ```
-0xf7423c4b7645e55d80E50Ea9eE0F1D1E03B172AE
+0x026B95562bFc5595338CCF086031002030d432b6
 ```
 - **Name:** Artifact
 - **Symbol:** ARTIFACT
 - **Purpose:** NFT collection for unique artifacts that can be combined into totems
 
+### TribeManager
+```
+0xa83210c8a77BbD021d65d8877D0F69182132339B
+```
+- **Purpose:** Manages tribes, initiation artifacts, and member artifact minting
+- **Dependencies:** ArtifactCollection
+
 ### TotemManager
 ```
-0x37B5E7D858c9F751b91821D00F89d4A4dA117d7a
+0x065f0cd076d85eA1811530015915Fd2826f143F4
 ```
 - **Purpose:** Manages totem creation, artifact binding, and power-ups
 - **Dependencies:** MagicToken, ArtifactCollection
 
 ### QuestManager
 ```
-0x3bDc1b8269A305B1FF5eD3D304279537662082e2
+0x961dC01330b6f554b10aB75952424Bc343065733
 ```
 - **Purpose:** Handles quest reward claims with signature verification
 - **Dependencies:** MagicToken
-- **Status:** Set as minter for MagicToken ✅
-- **Attestor:** Currently set to deployer address (can be updated)
+- **Status:** Will be set as minter for MagicToken after deployment
+- **Attestor:** TBD (can be updated after deployment)
+
+### IslandMythos
+```
+0x2201c8897b855Fb25Ff019EBa1De8F28F6e723E6
+```
+- **Purpose:** Canonical source of truth for the island's mythos, theme, and lore
+- **Status:** Must be initialized before locations can be created
+
+### LocationRegistry
+```
+0x1A21d327041601670269540541e2717bc2BfDa24
+```
+- **Purpose:** Registry of named locations on the island
+- **Dependencies:** IslandMythos
 
 ## 🔗 Links
 
@@ -46,11 +67,16 @@
 
 ## ✅ Deployment Status
 
-- [x] MagicToken deployed
-- [x] ArtifactCollection deployed
-- [x] TotemManager deployed
-- [x] QuestManager deployed
-- [x] QuestManager set as minter for MagicToken
+(- [x]) MagicToken deployed
+(- [x]) ArtifactCollection deployed
+(- [x]) TribeManager deployed
+(- [x]) TotemManager deployed
+(- [x]) QuestManager deployed
+(- [x]) IslandMythos deployed
+(- [x]) LocationRegistry deployed
+- [ ] QuestManager set as minter for MagicToken
+- [ ] TribeManager set as minter for ArtifactCollection
+- [ ] IslandMythos initialized
 
 ## 📝 Next Steps
 

@@ -22,14 +22,19 @@ The Saga chainlet network is configured in `hardhat.config.ts`:
 
 ```bash
 cd contracts
-npx hardhat ignition deploy ignition/modules/MysticIsland.ts --network saga
+npx hardhat ignition deploy MysticIsland --network saga
 ```
+
+**Note:** Use just the module name (without path or `.ts` extension). Hardhat Ignition will automatically find it in `ignition/modules/`.
 
 This will deploy all contracts in the correct order:
 1. **MagicToken** - ERC20 token
 2. **ArtifactCollection** - ERC721 NFT collection
-3. **TotemManager** - Totem management system
-4. **QuestManager** - Quest reward system
+3. **TribeManager** - Tribe and initiation management
+4. **IslandMythos** - Realm mythos and theme registry
+5. **LocationRegistry** - Location registry (requires IslandMythos)
+6. **TotemManager** - Totem management system
+7. **QuestManager** - Quest reward system
 
 ### 2. Post-Deployment Setup
 
@@ -58,8 +63,16 @@ The deployment will output all contract addresses. Save these for your frontend/
 After deployment, you'll receive addresses for:
 - `MagicToken` - Used for powering up totems and quest rewards
 - `ArtifactCollection` - NFT collection for artifacts
+- `TribeManager` - Manages tribes, initiation artifacts, and member minting
+- `IslandMythos` - Canonical source for realm mythos, theme, and lore
+- `LocationRegistry` - Registry of named locations on the island
 - `TotemManager` - Manages totem creation and power-ups
 - `QuestManager` - Handles quest reward claims
+
+**Important:** After deployment:
+1. Update contract addresses in `src/utils/contracts.ts`
+2. Initialize IslandMythos via the onboarding flow (`/onboarding`)
+3. Create locations via the create-location page (`/create-location`)
 
 ## Testing Deployment
 

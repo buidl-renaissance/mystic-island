@@ -4,6 +4,7 @@ import { useRouter } from "next/router";
 import { CDPReactProvider, type Config, type Theme } from "@coinbase/cdp-react";
 import { CDPHooksProvider } from "@coinbase/cdp-hooks";
 import Navigation from "@/components/Navigation";
+import { useAutoDeployWallet } from "@/hooks/useAutoDeployWallet";
 
 const config: Config = {
   projectId: "91f1f5ba-475e-4652-83a5-81f337f6d802",
@@ -40,17 +41,37 @@ const theme: Partial<Theme> = {
   "font-family-sans": "'Inter', 'Inter Fallback'",
 };
 
-export default function App({ Component, pageProps }: AppProps) {
+function AppContent({ Component, pageProps }: AppProps) {
   const router = useRouter();
   const isHomePage = router.pathname === '/';
   const isAboutPage = router.pathname === '/about';
-  const showNavigation = !isHomePage && !isAboutPage;
+  const isOnboardingPage = router.pathname === '/onboarding';
+  const isDeployWalletPage = router.pathname === '/deploy-wallet';
+  const isAuthPage = router.pathname === '/auth';
+  const isExplorePage = router.pathname === '/explore';
+  const showNavigation = !isHomePage && !isAboutPage && !isOnboardingPage;
 
+  // Only run auto-deployment on pages where it makes sense
+  // Skip on deploy-wallet, auth, and explore pages to avoid redirect loops
+  const shouldAutoDeploy = !isDeployWalletPage && !isAuthPage && !isExplorePage;
+  
+  if (shouldAutoDeploy) {
+    useAutoDeployWallet();
+  }
+
+  return (
+    <>
+      {showNavigation && <Navigation />}
+      <Component {...pageProps} />
+    </>
+  );
+}
+
+export default function App({ Component, pageProps }: AppProps) {
   return (
     <CDPHooksProvider config={config}>
       <CDPReactProvider config={config} theme={theme}>
-        {showNavigation && <Navigation />}
-        <Component {...pageProps} />
+        <AppContent Component={Component} pageProps={pageProps} />
       </CDPReactProvider>
     </CDPHooksProvider>
   );

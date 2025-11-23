@@ -589,6 +589,105 @@ export default function ContractsPage() {
                 View on Explorer →
               </ExplorerLink>
             </ContractCard>
+
+            {/* IslandMythos */}
+            {CONTRACT_ADDRESSES.ISLAND_MYTHOS !== "0x0000000000000000000000000000000000000000" && (
+              <ContractCard>
+                <ContractHeader>
+                  <ContractName>Island Mythos</ContractName>
+                  <ContractType>Registry</ContractType>
+                </ContractHeader>
+                <ContractAddress>
+                  <AddressLabel>Contract Address</AddressLabel>
+                  <AddressValue
+                    onClick={() =>
+                      navigator.clipboard.writeText(CONTRACT_ADDRESSES.ISLAND_MYTHOS)
+                    }
+                    title="Click to copy"
+                  >
+                    {formatAddress(CONTRACT_ADDRESSES.ISLAND_MYTHOS)}
+                  </AddressValue>
+                </ContractAddress>
+                <ContractStats>
+                  {isLoading ? (
+                    <>
+                      <LoadingSkeleton />
+                      <LoadingSkeleton />
+                    </>
+                  ) : (
+                    <>
+                      <Stat>
+                        <StatLabel>Status</StatLabel>
+                        <StatValue>
+                          {data.islandMythos.initialized
+                            ? data.islandMythos.locked
+                              ? "✓ Initialized & Locked"
+                              : "✓ Initialized"
+                            : "Not Initialized"}
+                        </StatValue>
+                      </Stat>
+                      <Stat>
+                        <StatLabel>Island Name</StatLabel>
+                        <StatValue>
+                          {data.islandMythos.islandName || "—"}
+                        </StatValue>
+                      </Stat>
+                    </>
+                  )}
+                </ContractStats>
+                <ExplorerLink
+                  href={`${explorerUrl}/address/${CONTRACT_ADDRESSES.ISLAND_MYTHOS}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View on Explorer →
+                </ExplorerLink>
+              </ContractCard>
+            )}
+
+            {/* LocationRegistry */}
+            {CONTRACT_ADDRESSES.LOCATION_REGISTRY !== "0x0000000000000000000000000000000000000000" && (
+              <ContractCard>
+                <ContractHeader>
+                  <ContractName>Location Registry</ContractName>
+                  <ContractType>Registry</ContractType>
+                </ContractHeader>
+                <ContractAddress>
+                  <AddressLabel>Contract Address</AddressLabel>
+                  <AddressValue
+                    onClick={() =>
+                      navigator.clipboard.writeText(CONTRACT_ADDRESSES.LOCATION_REGISTRY)
+                    }
+                    title="Click to copy"
+                  >
+                    {formatAddress(CONTRACT_ADDRESSES.LOCATION_REGISTRY)}
+                  </AddressValue>
+                </ContractAddress>
+                <ContractStats>
+                  {isLoading ? (
+                    <>
+                      <LoadingSkeleton />
+                    </>
+                  ) : (
+                    <Stat>
+                      <StatLabel>Total Locations</StatLabel>
+                      <StatValue>
+                        {data.locationRegistry.totalLocations
+                          ? `${data.locationRegistry.totalLocations} created`
+                          : "—"}
+                      </StatValue>
+                    </Stat>
+                  )}
+                </ContractStats>
+                <ExplorerLink
+                  href={`${explorerUrl}/address/${CONTRACT_ADDRESSES.LOCATION_REGISTRY}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  View on Explorer →
+                </ExplorerLink>
+              </ContractCard>
+            )}
           </ContractsGrid>
         </Container>
       </PageContainer>
