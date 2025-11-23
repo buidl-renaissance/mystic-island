@@ -114,6 +114,14 @@ const Card = styled.div`
     border-color: rgba(232, 168, 85, 0.6);
     box-shadow: 0 8px 32px rgba(232, 168, 85, 0.2);
   }
+
+  @media (max-width: 768px) {
+    background: transparent;
+    border: none;
+    padding: 0;
+    margin-bottom: 0;
+    backdrop-filter: none;
+  }
 `;
 
 const LocationsGrid = styled.div`

@@ -533,7 +533,7 @@ export default function TotemDetailPage() {
           </Header>
 
           <HeaderBar>
-            <ActionButton onClick={() => router.push("/totems")}>← Back to Totems</ActionButton>
+            <ActionButton onClick={() => router.push("/totem")}>← Back to Totems</ActionButton>
             <MagicBalance />
           </HeaderBar>
 

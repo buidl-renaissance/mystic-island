@@ -49,6 +49,24 @@ const fadeIn = keyframes`
   to { opacity: 1; transform: translateY(0); }
 `;
 
+const spin = keyframes`
+  0% { transform: rotateY(0deg); }
+  60% { transform: rotateY(1080deg); }
+  70% { transform: rotateY(1120deg); }
+  80% { transform: rotateY(1060deg); }
+  90% { transform: rotateY(1090deg); }
+  100% { transform: rotateY(1080deg); }
+`;
+
+const glow = keyframes`
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(232, 168, 85, 0.5), 0 0 40px rgba(232, 168, 85, 0.3), 0 0 60px rgba(232, 168, 85, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(232, 168, 85, 0.8), 0 0 60px rgba(232, 168, 85, 0.5), 0 0 90px rgba(232, 168, 85, 0.3);
+  }
+`;
+
 // Styled Components
 const PageContainer = styled.div`
   min-height: 100vh;
@@ -60,25 +78,16 @@ const PageContainer = styled.div`
 `;
 
 const Container = styled.div`
-  max-width: 1200px;
+  max-width: 420px;
   margin: 0 auto;
   animation: ${fadeIn} 0.6s ease-out;
 `;
 
 const Header = styled.div`
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 4rem;
   ${cinzel.variable}
   font-family: var(--font-cinzel);
-`;
-
-const HeaderBar = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-bottom: 2rem;
-  gap: 1rem;
-  flex-wrap: wrap;
 `;
 
 const Title = styled.h1`
@@ -93,6 +102,7 @@ const Subtitle = styled.p`
   font-size: 1.2rem;
   color: ${colors.textSecondary};
   margin-top: 0.5rem;
+  margin-bottom: 2rem;
 `;
 
 const Card = styled.div`
@@ -104,80 +114,6 @@ const Card = styled.div`
   margin-bottom: 2rem;
 `;
 
-const TotemGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-`;
-
-const TotemCard = styled(Link)`
-  background: rgba(10, 20, 16, 0.5);
-  border: 1px solid rgba(232, 168, 85, 0.3);
-  border-radius: 12px;
-  padding: 1.5rem;
-  text-decoration: none;
-  color: ${colors.textPrimary};
-  transition: all 0.3s ease;
-  display: block;
-
-  &:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 8px 24px rgba(232, 168, 85, 0.3);
-    border-color: ${colors.sunlitGold};
-  }
-`;
-
-const TotemId = styled.div`
-  font-size: 1.5rem;
-  font-weight: 700;
-  color: ${colors.sunlitGold};
-  margin-bottom: 0.5rem;
-`;
-
-const TotemStat = styled.div`
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 0.5rem;
-  color: ${colors.textSecondary};
-  font-size: 0.9rem;
-`;
-
-const StatValue = styled.span`
-  color: ${colors.textPrimary};
-  font-weight: 600;
-`;
-
-const ActionButton = styled(Link)`
-  display: inline-block;
-  padding: 0.75rem 1.5rem;
-  background: linear-gradient(135deg, ${colors.sunlitGold} 0%, ${colors.sunsetOrange} 100%);
-  border: none;
-  border-radius: 8px;
-  color: ${colors.textPrimary};
-  text-decoration: none;
-  font-weight: 600;
-  transition: all 0.3s ease;
-  margin: 0.5rem;
-  
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(232, 168, 85, 0.3);
-  }
-`;
-
-const EmptyState = styled.div`
-  text-align: center;
-  padding: 3rem;
-  color: ${colors.textSecondary};
-`;
-
-const LoadingMessage = styled.div`
-  text-align: center;
-  color: ${colors.textSecondary};
-  padding: 2rem;
-`;
-
 const ErrorMessage = styled.div`
   background: rgba(199, 106, 42, 0.2);
   border: 1px solid ${colors.sunsetOrange};
@@ -187,36 +123,109 @@ const ErrorMessage = styled.div`
   margin-bottom: 1rem;
 `;
 
+const CommunityTotemCard = styled.div`
+  /* background: rgba(45, 90, 61, 0.3);
+  border: 2px solid rgba(232, 168, 85, 0.5);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  margin-bottom: 2rem; */
+  padding: 2rem;
+  text-align: center;
+`;
+
+const TotemLabel = styled.div`
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  color: ${colors.textMuted};
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+  ${inter.variable}
+  font-family: var(--font-inter);
+`;
+
+const CommunityTotemTitle = styled.h2`
+  font-size: 2rem;
+  font-weight: 700;
+  color: ${colors.sunlitGold};
+  margin-bottom: 0.5rem;
+  text-shadow: 0 0 20px rgba(232, 168, 85, 0.3);
+  ${cinzel.variable}
+  font-family: var(--font-cinzel);
+`;
+
+const CommunityTotemSubtitle = styled.p`
+  font-size: 1rem;
+  color: ${colors.textSecondary};
+  margin-bottom: 2.5rem;
+  ${cinzel.variable}
+  font-family: var(--font-cinzel);
+`;
+
+const TotemImageContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 1.5rem;
+`;
+
+const TotemImage = styled.img`
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 2px solid rgba(232, 168, 85, 0.3);
+  animation: ${spin} 2.5s cubic-bezier(0.68, -0.55, 0.265, 1.55), ${glow} 3s ease-in-out infinite;
+  transform-style: preserve-3d;
+`;
+
+const ExploreButton = styled(Link)`
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, ${colors.sunlitGold} 0%, ${colors.sunsetOrange} 100%);
+  border: none;
+  border-radius: 8px;
+  color: ${colors.textPrimary};
+  text-decoration: none;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  margin-top: 1rem;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(232, 168, 85, 0.3);
+  }
+`;
+
 export default function TotemsPage() {
   const { isSignedIn } = useIsSignedIn();
   const { totems, isLoading, error, refetch } = useTotems();
 
-  if (!isSignedIn) {
-    return (
-      <>
-        <Head>
-          <title>My Totems - Mystic Island</title>
-          <meta name="description" content="View your totems" />
-        </Head>
-        <PageContainer>
-          <Container>
-            <Header>
-              <Title>My Totems</Title>
-              <Subtitle>View and manage your totems</Subtitle>
-            </Header>
-            <Card>
-              <div style={{ textAlign: "center", padding: "2rem" }}>
-                <p style={{ color: colors.textSecondary, marginBottom: "2rem" }}>
-                  Please sign in to view your totems
-                </p>
-                <AuthButton />
-              </div>
-            </Card>
-          </Container>
-        </PageContainer>
-      </>
-    );
-  }
+  // if (!isSignedIn) {
+  //   return (
+  //     <>
+  //       <Head>
+  //         <title>My Totems - Mystic Island</title>
+  //         <meta name="description" content="View your totems" />
+  //       </Head>
+  //       <PageContainer>
+  //         <Container>
+  //           <Header>
+  //             <Title>My Totems</Title>
+  //             <Subtitle>View and manage your totems</Subtitle>
+  //           </Header>
+  //           <Card>
+  //             <div style={{ textAlign: "center", padding: "2rem" }}>
+  //               <p style={{ color: colors.textSecondary, marginBottom: "2rem" }}>
+  //                 Please sign in to view your totems
+  //               </p>
+  //               <AuthButton />
+  //             </div>
+  //           </Card>
+  //         </Container>
+  //       </PageContainer>
+  //     </>
+  //   );
+  // }
 
   return (
     <>
@@ -226,22 +235,37 @@ export default function TotemsPage() {
       </Head>
       <PageContainer>
         <Container>
-          <Header>
+          {/* <Header>
             <Title>My Totems</Title>
             <Subtitle>View and manage your totems</Subtitle>
           </Header>
 
           <HeaderBar>
             <MagicBalance />
-          </HeaderBar>
+          </HeaderBar> */}
 
-          <div style={{ textAlign: "center", marginBottom: "2rem" }}>
+          <CommunityTotemCard>
+            <TotemLabel>COMMUNITY TOTEM</TotemLabel>
+            <CommunityTotemTitle>The Spirit of Luma</CommunityTotemTitle>
+            <CommunityTotemSubtitle>Mystic Island</CommunityTotemSubtitle>
+            <TotemImageContainer>
+              <TotemImage 
+                src="/images/mystic-island-origin.jpg" 
+                alt="The Spirit of Luma"
+              />
+            </TotemImageContainer>
+            <ExploreButton href="/explore">
+              Explore the Island
+            </ExploreButton>
+          </CommunityTotemCard>
+
+          {/* <div style={{ textAlign: "center", marginBottom: "2rem" }}>
             <ActionButton href="/create-totem">Create New Totem</ActionButton>
-          </div>
+          </div> */}
 
           {error && <ErrorMessage>{error}</ErrorMessage>}
 
-          <Card>
+          {/* <Card>
             {isLoading ? (
               <LoadingMessage>Loading totems...</LoadingMessage>
             ) : totems.length === 0 ? (
@@ -272,7 +296,7 @@ export default function TotemsPage() {
                 ))}
               </TotemGrid>
             )}
-          </Card>
+          </Card> */}
         </Container>
       </PageContainer>
     </>

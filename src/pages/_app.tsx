@@ -108,7 +108,7 @@ const StatEmoji = styled.span`
 function AppContent({ Component, pageProps }: { Component: AppProps['Component']; pageProps: AppProps['pageProps'] }) {
   const router = useRouter();
   const { isSignedIn } = useIsSignedIn();
-  const { artifactCount, magicBalance, isLoading: statsLoading } = useUserStats();
+  const { magicBalance, isLoading: statsLoading } = useUserStats();
   const isOnboardingPage = router.pathname === '/onboarding';
   const isStartPage = router.pathname === '/start';
   const isDeployWalletPage = router.pathname === '/deploy-wallet';
@@ -147,12 +147,6 @@ function AppContent({ Component, pageProps }: { Component: AppProps['Component']
           <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
             {isSignedIn && (
               <StatsContainer>
-                <StatItem>
-                  <StatValue>
-                    <StatEmoji>🏺</StatEmoji>
-                    <span>{statsLoading ? "..." : (artifactCount ?? 0)}</span>
-                  </StatValue>
-                </StatItem>
                 <StatItem>
                   <StatValue>
                     <StatEmoji>✨</StatEmoji>

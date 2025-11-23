@@ -156,7 +156,7 @@ export default function Navigation() {
             Dashboard
           </Link>
           <Link
-            href="/totems"
+            href="/totem"
             style={{
               color: "#0a0b0d",
               textDecoration: "none",

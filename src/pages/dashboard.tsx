@@ -436,7 +436,7 @@ export default function DashboardPage() {
               <div style={{ color: colors.textSecondary }}>
                 You have {totems.length} totem{totems.length !== 1 ? "s" : ""}
                 <div style={{ marginTop: "1rem" }}>
-                  <ActionButton href="/totems">View All Totems</ActionButton>
+                  <ActionButton href="/totem">View All Totems</ActionButton>
                 </div>
               </div>
             )}
@@ -447,7 +447,7 @@ export default function DashboardPage() {
             <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
               <ActionButton href="/create-artifact">Create Artifact</ActionButton>
               <ActionButton href="/create-totem">Create Totem</ActionButton>
-              <ActionButton href="/totems">View Totems</ActionButton>
+              <ActionButton href="/totem">View Totems</ActionButton>
               <ActionButton href="/join-tribe">Join Tribe</ActionButton>
               <ActionButton href="/claim-quest">Claim Quest</ActionButton>
               <ActionButton href="/review-requests">Review Requests</ActionButton>

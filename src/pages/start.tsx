@@ -4,7 +4,6 @@ import styled, { keyframes } from "styled-components";
 import { Cinzel, Inter } from "next/font/google";
 import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
 import { AuthButton } from "@coinbase/cdp-react";
-import { useIslandMythos } from "@/hooks/useIslandMythos";
 import { useRouter } from "next/router";
 import { CONTRACT_ADDRESSES } from "@/utils/contracts";
 
@@ -98,18 +97,14 @@ const LoadingText = styled.p`
 export default function StartPage() {
   const { isSignedIn } = useIsSignedIn();
   const { evmAddress } = useEvmAddress();
-  const { mythos, isLoading: mythosLoading } = useIslandMythos();
   const router = useRouter();
 
   // Check if mythos contract is deployed
   const isMythosDeployed = (CONTRACT_ADDRESSES.ISLAND_MYTHOS as string) !== "0x0000000000000000000000000000000000000000";
 
-  // Compute checking state - we're done checking if we're signed in and not loading mythos
-  const isChecking = isSignedIn && mythosLoading;
-
   useEffect(() => {
-    // Only handle routing if we're signed in and done loading
-    if (!isSignedIn || mythosLoading) {
+    // Only handle routing if we're signed in
+    if (!isSignedIn) {
       return;
     }
 
@@ -118,40 +113,9 @@ export default function StartPage() {
       return;
     }
 
-    // If mythos is not initialized, route to onboarding
-    if (mythos && !mythos.initialized) {
-      router.push("/onboarding");
-      return;
-    }
-
-    // If mythos is initialized, route to dashboard
-    if (mythos && mythos.initialized) {
-      router.push("/dashboard");
-      return;
-    }
-  }, [isSignedIn, mythos, mythosLoading, isMythosDeployed, router]);
-
-  // Show loading state while checking
-  if (isChecking || mythosLoading) {
-    return (
-      <>
-        <Head>
-          <title>Starting Your Journey - Mystic Island</title>
-          <meta name="description" content="Begin your journey on Mystic Island" />
-        </Head>
-        <PageContainer>
-          <Container>
-            <Header>
-              <Title>Starting Your Journey</Title>
-            </Header>
-            <Card>
-              <LoadingText>Loading...</LoadingText>
-            </Card>
-          </Container>
-        </PageContainer>
-      </>
-    );
-  }
+    // Once signed in, redirect to totem page to view the community totem
+    router.push("/totem");
+  }, [isSignedIn, isMythosDeployed, router]);
 
   // Not signed in - show auth
   if (!isSignedIn) {

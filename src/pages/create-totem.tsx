@@ -315,7 +315,7 @@ export default function CreateTotemPage() {
 
       // Wait a bit then redirect to totems page
       setTimeout(() => {
-        router.push("/totems");
+        router.push("/totem");
       }, 3000);
     } catch (error) {
       console.error("Error creating totem:", error);
