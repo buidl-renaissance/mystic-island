@@ -3,16 +3,15 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import styled, { keyframes } from "styled-components";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useIsSignedIn } from "@coinbase/cdp-hooks";
 import { AuthButton } from "@coinbase/cdp-react";
 import { createPublicClient, http } from "viem";
 import { CONTRACT_ADDRESSES, SAGA_CHAINLET, LOCATION_REGISTRY_ABI } from "@/utils/contracts";
 import Link from "next/link";
 import type { Location } from "@/hooks/useLocationRegistry";
-import MagicBalance from "@/components/MagicBalance";
 import CollectMagicButton from "@/components/CollectMagicButton";
 import { useUserStats } from "@/hooks/useUserStats";
-import { getChildLocations, isDeadEnd } from "@/utils/locationTree";
+import { getChildLocations } from "@/utils/locationTree";
 import Portal from "@/components/Portal";
 
 // Fonts
@@ -68,7 +67,7 @@ const PageContainer = styled.div`
 `;
 
 const Container = styled.div`
-  max-width: 1000px;
+  max-width: 700px;
   margin: 0 auto;
   animation: ${fadeIn} 0.6s ease-out;
 `;
@@ -118,44 +117,6 @@ const Description = styled.p`
   font-family: var(--font-cormorant);
 `;
 
-const InfoGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 1.5rem;
-  margin-bottom: 2rem;
-`;
-
-const InfoItem = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-`;
-
-const InfoLabel = styled.span`
-  font-size: 0.85rem;
-  color: ${colors.textMuted};
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  font-weight: 600;
-`;
-
-const InfoValue = styled.span`
-  font-size: 1.1rem;
-  color: ${colors.textPrimary};
-  font-weight: 600;
-`;
-
-const Badge = styled.span`
-  display: inline-block;
-  padding: 0.5rem 1rem;
-  background: rgba(232, 168, 85, 0.2);
-  border: 1px solid rgba(232, 168, 85, 0.4);
-  border-radius: 12px;
-  font-size: 0.9rem;
-  color: ${colors.sunlitGold};
-  margin-right: 0.5rem;
-  margin-bottom: 0.5rem;
-`;
 
 const URISection = styled.div`
   margin-top: 2rem;
@@ -199,9 +160,7 @@ const SceneImage = styled.img`
 `;
 
 const ImageContainer = styled.div`
-  margin-top: 2rem;
-  padding-top: 2rem;
-  border-top: 1px solid rgba(232, 168, 85, 0.2);
+  margin-top: 1rem;
 `;
 
 const LoadingSkeleton = styled.div`
@@ -220,14 +179,6 @@ const ErrorMessage = styled.div`
   margin-bottom: 1rem;
 `;
 
-const HeaderBar = styled.div`
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-  flex-wrap: wrap;
-  gap: 1rem;
-`;
 
 const CollectMagicCard = styled(Card)`
   background: rgba(232, 168, 85, 0.15);
@@ -274,47 +225,15 @@ const ChildLocationCard = styled(Link)`
   }
 `;
 
-const DeadEndBadge = styled(Badge)`
-  background: rgba(90, 63, 143, 0.3);
-  border-color: rgba(90, 63, 143, 0.6);
-  color: ${colors.orchidPurple};
-`;
-
-// Biome type names
-const BIOME_NAMES: Record<number, string> = {
-  0: "Unknown",
-  1: "Meadow",
-  2: "Forest",
-  3: "Marsh",
-  4: "Mountain",
-  5: "Beach",
-  6: "Ruins",
-  7: "Bazaar",
-  8: "Shrine",
-  9: "Cave",
-  10: "Custom",
-};
-
-// Difficulty tier names
-const DIFFICULTY_NAMES: Record<number, string> = {
-  0: "None",
-  1: "Easy",
-  2: "Normal",
-  3: "Hard",
-  4: "Mythic",
-};
 
 export default function LocationDetailPage() {
   const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
   const router = useRouter();
   const { id } = router.query;
   const [location, setLocation] = useState<Location | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [parentLocation, setParentLocation] = useState<Location | null>(null);
   const [childLocations, setChildLocations] = useState<Location[]>([]);
-  const [allLocations, setAllLocations] = useState<Location[]>([]);
   const { refetch: refetchMagicBalance } = useUserStats();
 
   useEffect(() => {
@@ -324,18 +243,13 @@ export default function LocationDetailPage() {
         return;
       }
 
-      if (CONTRACT_ADDRESSES.LOCATION_REGISTRY === "0x0000000000000000000000000000000000000000") {
-        setError("LocationRegistry contract not deployed yet.");
-        setIsLoading(false);
-        return;
-      }
 
       setIsLoading(true);
       setError(null);
 
       try {
         const publicClient = createPublicClient({
-          chain: SAGA_CHAINLET as any,
+          chain: SAGA_CHAINLET,
           transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
         });
 
@@ -426,53 +340,11 @@ export default function LocationDetailPage() {
           }
         }
 
-        setAllLocations(allLocs);
 
         // Get child locations
         const children = getChildLocations(locationId, allLocs);
         setChildLocations(children);
 
-        // Fetch parent location if it exists
-        if (locationObj.parentLocationId !== 0n) {
-          try {
-            const parentData = await publicClient.readContract({
-              address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
-              abi: LOCATION_REGISTRY_ABI,
-              functionName: "getLocation",
-              args: [locationObj.parentLocationId],
-            });
-
-            const parent = parentData as unknown as {
-              id: bigint;
-              slug: string;
-              displayName: string;
-              description: string;
-              biome: bigint;
-              difficulty: bigint;
-              parentLocationId: bigint;
-              isActive: boolean;
-              sceneURI: string;
-              controller: string;
-              metadataURI: string;
-            };
-
-            setParentLocation({
-              id: parent.id,
-              slug: parent.slug,
-              displayName: parent.displayName,
-              description: parent.description,
-              biome: Number(parent.biome),
-              difficulty: Number(parent.difficulty),
-              parentLocationId: parent.parentLocationId,
-              isActive: parent.isActive,
-              sceneURI: parent.sceneURI,
-              controller: parent.controller as string,
-              metadataURI: parent.metadataURI,
-            });
-          } catch (err) {
-            console.error("Error fetching parent location:", err);
-          }
-        }
       } catch (err) {
         console.error("Error fetching location:", err);
         setError(err instanceof Error ? err.message : "Failed to fetch location");
@@ -482,8 +354,7 @@ export default function LocationDetailPage() {
     }
 
     fetchLocation();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [id, evmAddress]);
+  }, [id]);
 
   if (!isSignedIn) {
     return (
@@ -568,26 +439,6 @@ export default function LocationDetailPage() {
         <Container>
           <BackLink href="/explore">← Back to Explore</BackLink>
 
-          <HeaderBar>
-            <div style={{ flex: 1 }} />
-            <MagicBalance />
-          </HeaderBar>
-
-          <CollectMagicCard>
-            <SectionTitle>Collect Magic</SectionTitle>
-            <p style={{ color: colors.textSecondary, marginBottom: "1.5rem" }}>
-              Visit this location to collect Magic tokens! Each location can be visited once per day.
-            </p>
-            {location && (
-              <CollectMagicButton
-                locationId={Number(location.id)}
-                difficulty={location.difficulty}
-                onSuccess={() => {
-                  refetchMagicBalance();
-                }}
-              />
-            )}
-          </CollectMagicCard>
 
           <Card>
             <Title>{location.displayName}</Title>
@@ -596,7 +447,6 @@ export default function LocationDetailPage() {
             {/* Display scene image if available */}
             {location.sceneURI && (
               <ImageContainer>
-                <URITitle>Scene Image</URITitle>
                 <SceneImage
                   src={convertIpfsUrl(location.sceneURI)}
                   alt={location.displayName}
@@ -617,62 +467,6 @@ export default function LocationDetailPage() {
               </ImageContainer>
             )}
 
-            <InfoGrid>
-              <InfoItem>
-                <InfoLabel>Location ID</InfoLabel>
-                <InfoValue>#{location.id.toString()}</InfoValue>
-              </InfoItem>
-
-              <InfoItem>
-                <InfoLabel>Slug</InfoLabel>
-                <InfoValue>{location.slug}</InfoValue>
-              </InfoItem>
-
-              <InfoItem>
-                <InfoLabel>Biome</InfoLabel>
-                <InfoValue>
-                  <Badge>🏞️ {BIOME_NAMES[location.biome] || "Unknown"}</Badge>
-                </InfoValue>
-              </InfoItem>
-
-              <InfoItem>
-                <InfoLabel>Difficulty</InfoLabel>
-                <InfoValue>
-                  <Badge>⚔️ {DIFFICULTY_NAMES[location.difficulty] || "None"}</Badge>
-                </InfoValue>
-              </InfoItem>
-
-              {parentLocation && (
-                <InfoItem>
-                  <InfoLabel>Parent Location</InfoLabel>
-                  <InfoValue>
-                    <Link
-                      href={`/location/${parentLocation.id}`}
-                      style={{ color: colors.jungleCyan, textDecoration: "none" }}
-                    >
-                      {parentLocation.displayName}
-                    </Link>
-                  </InfoValue>
-                </InfoItem>
-              )}
-
-              <InfoItem>
-                <InfoLabel>Status</InfoLabel>
-                <InfoValue>
-                  <Badge>{location.isActive ? "✅ Active" : "❌ Inactive"}</Badge>
-                </InfoValue>
-              </InfoItem>
-
-
-              {isDeadEnd(location.id, allLocations) && (
-                <InfoItem>
-                  <InfoLabel>Path End</InfoLabel>
-                  <InfoValue>
-                    <DeadEndBadge>🏁 Dead End</DeadEndBadge>
-                  </InfoValue>
-                </InfoItem>
-              )}
-            </InfoGrid>
 
             {/* Show child locations */}
             {childLocations.length > 0 && (
@@ -704,15 +498,23 @@ export default function LocationDetailPage() {
               </URISection>
             )}
 
-            {location.controller !== "0x0000000000000000000000000000000000000000" && (
-              <InfoItem style={{ marginTop: "2rem" }}>
-                <InfoLabel>Controller Contract</InfoLabel>
-                <InfoValue style={{ fontFamily: "monospace", fontSize: "0.9rem" }}>
-                  {location.controller}
-                </InfoValue>
-              </InfoItem>
-            )}
           </Card>
+
+          <CollectMagicCard>
+            <SectionTitle>Collect Magic</SectionTitle>
+            <p style={{ color: colors.textSecondary, marginBottom: "1.5rem" }}>
+              Visit this location to collect Magic tokens! Each location can be visited once per day.
+            </p>
+            {location && (
+              <CollectMagicButton
+                locationId={Number(location.id)}
+                difficulty={location.difficulty}
+                onSuccess={() => {
+                  refetchMagicBalance();
+                }}
+              />
+            )}
+          </CollectMagicCard>
         </Container>
       </PageContainer>
     </>
