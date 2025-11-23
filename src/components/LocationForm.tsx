@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
 import styled from "styled-components";
-import { useSendUserOperation, useCurrentUser } from "@coinbase/cdp-hooks";
+import { useCurrentUser } from "@coinbase/cdp-hooks";
 import { signEvmTransaction } from "@coinbase/cdp-core";
 import { createPublicClient, createWalletClient, http, custom, encodeFunctionData } from "viem";
 import { CONTRACT_ADDRESSES, SAGA_CHAINLET, LOCATION_REGISTRY_ABI, ISLAND_MYTHOS_ABI } from "@/utils/contracts";
 import MediaUpload from "@/components/MediaUpload";
 import { getIpfsProtocolUrl } from "@/utils/ipfs";
 import { useIslandMythos } from "@/hooks/useIslandMythos";
+import { getLocationSceneURI, hasLocationScene } from "@/utils/location-scenes";
 
 // Color Palette
 const colors = {
@@ -176,9 +177,7 @@ interface LocationFormProps {
 
 export default function LocationForm({ onSuccess, initialData }: LocationFormProps) {
   const { currentUser } = useCurrentUser();
-  const { sendUserOperation } = useSendUserOperation();
   const { mythos, isLoading: mythosLoading } = useIslandMythos();
-  const smartAccount = currentUser?.evmSmartAccounts?.[0];
   const evmAccount = currentUser?.evmAccounts?.[0];
 
   const [formData, setFormData] = useState({
@@ -201,6 +200,8 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
   const [uploadedImageHash, setUploadedImageHash] = useState<string | null>(null);
   const [uploadedVideoHash, setUploadedVideoHash] = useState<string | null>(null);
   const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
+  const [hasExistingScene, setHasExistingScene] = useState(false);
+  const [existingSceneURI, setExistingSceneURI] = useState<string | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,12 +246,125 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
 
       let hash: string;
 
-      // Check for MetaMask FIRST and prioritize it
+      // Prioritize embedded wallet for Saga chainlet transactions
+      // MetaMask is only used as a fallback if embedded wallet is not available
       const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : null;
-      // Check if MetaMask is available (isMetaMask is a MetaMask-specific property)
       const useMetaMask = ethereum && (ethereum.isMetaMask || (!ethereum.isCoinbaseWallet && ethereum.selectedAddress));
       
-      if (useMetaMask) {
+      // Try embedded wallet first (for Saga chainlet)
+      if (evmAccount) {
+        // Extract address - evmAccount might be an object with .address or just the address string
+        const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+        if (!accountAddress) {
+          throw new Error("No EOA account address available. Please ensure you're properly connected.");
+        }
+        
+        const publicClient = createPublicClient({
+          chain: SAGA_CHAINLET as any,
+          transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+        });
+
+        // Check specific conditions before attempting transaction
+        const checks = await Promise.allSettled([
+          // Check if mythos is initialized
+          publicClient.readContract({
+            address: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
+            abi: ISLAND_MYTHOS_ABI,
+            functionName: "isInitialized",
+          }),
+          // Check if user has LOCATION_EDITOR_ROLE
+          (async () => {
+            const roleHash = await publicClient.readContract({
+              address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+              abi: LOCATION_REGISTRY_ABI,
+              functionName: "LOCATION_EDITOR_ROLE",
+            });
+            return publicClient.readContract({
+              address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+              abi: LOCATION_REGISTRY_ABI,
+              functionName: "hasRole",
+              args: [roleHash, accountAddress],
+            });
+          })(),
+          // Check if slug already exists
+          publicClient.readContract({
+            address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+            abi: LOCATION_REGISTRY_ABI,
+            functionName: "getLocationBySlug",
+            args: [formData.slug],
+          }).then((location) => location.id !== 0n).catch(() => false),
+          // Check if parent location exists (if parentLocationId !== 0)
+          formData.parentLocationId !== 0
+            ? publicClient.readContract({
+                address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+                abi: LOCATION_REGISTRY_ABI,
+                functionName: "getLocation",
+                args: [BigInt(formData.parentLocationId)],
+              }).then((location) => location.id !== 0n).catch(() => false)
+            : Promise.resolve(true),
+        ]);
+
+        const mythosInitialized = checks[0].status === 'fulfilled' && checks[0].value === true;
+        const hasPermission = checks[1].status === 'fulfilled' && checks[1].value === true;
+        const slugExists = checks[2].status === 'fulfilled' && checks[2].value === true;
+        const parentExists = checks[3].status === 'fulfilled' && checks[3].value === true;
+
+        // Provide specific error message based on checks
+        if (!mythosInitialized) {
+          throw new Error("The realm's mythos must be initialized before creating locations. Please initialize the mythos first.");
+        }
+        if (!hasPermission) {
+          throw new Error(`You don't have permission to create locations. Your address (${accountAddress}) needs the LOCATION_EDITOR_ROLE. Please contact an admin to grant you this role.`);
+        }
+        if (slugExists) {
+          throw new Error(`The slug "${formData.slug}" already exists. Please use a different slug.`);
+        }
+        if (!parentExists && formData.parentLocationId !== 0) {
+          throw new Error(`The parent location (ID: ${formData.parentLocationId}) does not exist. Please use 0 for root locations or ensure the parent location exists first.`);
+        }
+
+        // Get the current nonce and gas estimates from Saga chainlet
+        const [nonce, gasPrice] = await Promise.all([
+          publicClient.getTransactionCount({ address: accountAddress }),
+          publicClient.getGasPrice(),
+        ]);
+
+        // Estimate gas for the transaction
+        let gasEstimate: bigint;
+        try {
+          gasEstimate = await publicClient.estimateGas({
+            account: accountAddress,
+            to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+            data: data as `0x${string}`,
+            value: 0n,
+          });
+        } catch (estimateError) {
+          throw new Error(`Transaction would revert: ${estimateError instanceof Error ? estimateError.message : 'Unknown error'}`);
+        }
+
+        // Sign the transaction with the embedded wallet
+        const { signedTransaction } = await signEvmTransaction({
+          evmAccount,
+          transaction: {
+            to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+            data: data as `0x${string}`,
+            value: 0n,
+            nonce,
+            gas: gasEstimate,
+            maxFeePerGas: gasPrice,
+            maxPriorityFeePerGas: gasPrice / 2n,
+            chainId: SAGA_CHAINLET.id,
+            type: "eip1559",
+          },
+        });
+
+        // Broadcast the signed transaction to Saga chainlet
+        hash = await publicClient.sendRawTransaction({
+          serializedTransaction: signedTransaction,
+        });
+        console.log("Location creation via embedded wallet:", hash);
+      } else if (useMetaMask) {
+        // Fallback to MetaMask if embedded wallet is not available
           // Use MetaMask for signing
           const publicClient = createPublicClient({
             chain: SAGA_CHAINLET as any,
@@ -354,125 +468,8 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
             maxPriorityFeePerGas: gasPrice / 2n,
           });
           console.log("Location creation via MetaMask:", hash);
-      } else if (smartAccount) {
-        // Try using sendUserOperation with the chain ID as a string
-        // This will work if CDP has bundler infrastructure for Saga chainlet
-        try {
-          const result = await sendUserOperation({
-            evmSmartAccount: smartAccount,
-            network: SAGA_CHAINLET.id.toString() as any, // Try chain ID as string
-            calls: [
-              {
-                to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
-                data: data as `0x${string}`,
-                value: 0n,
-              },
-            ],
-          });
-          hash = result.userOperationHash || "";
-          console.log("Location creation via sendUserOperation:", result);
-        } catch (userOpError) {
-          console.log("sendUserOperation failed, trying embedded wallet:", userOpError);
-          
-          // Fallback: Sign transaction and broadcast manually with embedded wallet
-          if (!evmAccount) {
-            throw new Error("No EOA account available. Please connect MetaMask or ensure you're properly connected.");
-          }
-
-          // Extract address - evmAccount might be an object with .address or just the address string
-          const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
-          if (!accountAddress) {
-            throw new Error("No EOA account address available. Please connect MetaMask or ensure you're properly connected.");
-          }
-
-          // Create public client for Saga chainlet
-          const publicClient = createPublicClient({
-            chain: SAGA_CHAINLET as any,
-            transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
-          });
-
-          // Get the current nonce and gas estimates from Saga chainlet
-          const [nonce, gasPrice] = await Promise.all([
-            publicClient.getTransactionCount({ address: accountAddress }),
-            publicClient.getGasPrice(),
-          ]);
-
-          // Estimate gas for the transaction
-          const gasEstimate = await publicClient.estimateGas({
-            account: accountAddress,
-            to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
-            data: data as `0x${string}`,
-            value: 0n,
-          });
-
-          // Sign the transaction with the embedded wallet
-          const { signedTransaction } = await signEvmTransaction({
-            evmAccount,
-            transaction: {
-              to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
-              data: data as `0x${string}`,
-              value: 0n,
-              nonce,
-              gas: gasEstimate,
-              maxFeePerGas: gasPrice,
-              maxPriorityFeePerGas: gasPrice / 2n,
-              chainId: SAGA_CHAINLET.id,
-              type: "eip1559",
-            },
-          });
-
-          // Broadcast the signed transaction to Saga chainlet
-          hash = await publicClient.sendRawTransaction({
-            serializedTransaction: signedTransaction,
-          });
-          console.log("Location creation via embedded wallet:", hash);
-        }
-      } else if (evmAccount) {
-        // Fall back to embedded wallet signing if no MetaMask or smart account
-        // Extract address - evmAccount might be an object with .address or just the address string
-        const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
-        if (!accountAddress) {
-          throw new Error("No EOA account address available. Please connect MetaMask or ensure you're properly connected.");
-        }
-        
-        const publicClient = createPublicClient({
-          chain: SAGA_CHAINLET as any,
-          transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
-        });
-
-        const [nonce, gasPrice] = await Promise.all([
-          publicClient.getTransactionCount({ address: accountAddress }),
-          publicClient.getGasPrice(),
-        ]);
-
-        const gasEstimate = await publicClient.estimateGas({
-          account: accountAddress,
-          to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
-          data: data as `0x${string}`,
-          value: 0n,
-        });
-
-        const { signedTransaction } = await signEvmTransaction({
-          evmAccount,
-          transaction: {
-            to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
-            data: data as `0x${string}`,
-            value: 0n,
-            nonce,
-            gas: gasEstimate,
-            maxFeePerGas: gasPrice,
-            maxPriorityFeePerGas: gasPrice / 2n,
-            chainId: SAGA_CHAINLET.id,
-            type: "eip1559",
-          },
-        });
-
-        hash = await publicClient.sendRawTransaction({
-          serializedTransaction: signedTransaction,
-        });
-        console.log("Location creation via embedded wallet:", hash);
       } else {
-        throw new Error("No wallet available. Please install and connect MetaMask, or ensure you're properly connected.");
+        throw new Error("No wallet available. Please ensure you're properly connected with an embedded wallet, or install MetaMask as a fallback.");
       }
 
       setTransactionHash(hash);
@@ -595,6 +592,30 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
     }
   };
 
+  // Check if location already has a scene URI in the database
+  useEffect(() => {
+    async function checkExistingScene() {
+      if (formData.slug) {
+        const exists = await hasLocationScene(formData.slug);
+        if (exists) {
+          const sceneURI = await getLocationSceneURI(formData.slug);
+          if (sceneURI) {
+            setHasExistingScene(true);
+            setExistingSceneURI(sceneURI);
+            setFormData((prev) => ({
+              ...prev,
+              sceneURI: sceneURI,
+            }));
+          }
+        } else {
+          setHasExistingScene(false);
+          setExistingSceneURI(null);
+        }
+      }
+    }
+    checkExistingScene();
+  }, [formData.slug]);
+
   // Generate metadata when image, video, or form data changes
   useEffect(() => {
     if (
@@ -602,12 +623,13 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
       formData.displayName &&
       formData.description &&
       formData.slug &&
-      !isGeneratingMetadata
+      !isGeneratingMetadata &&
+      !hasExistingScene // Don't generate metadata if we're using existing scene
     ) {
       generateMetadata(uploadedImageHash, uploadedVideoHash || undefined);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [uploadedImageHash, uploadedVideoHash, formData.displayName, formData.description, formData.slug, formData.biome, formData.difficulty]);
+  }, [uploadedImageHash, uploadedVideoHash, formData.displayName, formData.description, formData.slug, formData.biome, formData.difficulty, hasExistingScene]);
 
   return (
     <FormContainer>
@@ -705,12 +727,28 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
 
         <FormGroup>
           <Label htmlFor="imageUpload">Location Image (Required)</Label>
+          {hasExistingScene && existingSceneURI && (
+            <div style={{ 
+              background: "rgba(74, 154, 122, 0.2)", 
+              border: `1px solid ${colors.jungleCyan}`, 
+              borderRadius: "8px", 
+              padding: "1rem", 
+              marginBottom: "1rem" 
+            }}>
+              <p style={{ color: colors.jungleCyan, margin: 0, fontWeight: 600 }}>
+                ✓ Using existing scene from contract: {existingSceneURI}
+              </p>
+              <p style={{ color: colors.textSecondary, margin: "0.5rem 0 0 0", fontSize: "0.9rem" }}>
+                This location already has a scene uploaded. You can upload a new image to replace it.
+              </p>
+            </div>
+          )}
           <MediaUpload
             accept="image/*"
             onUploadComplete={handleImageUpload}
             onError={(error) => setError(error)}
             disabled={isCreating || success}
-            label="Upload location image"
+            label={hasExistingScene ? "Upload new location image (optional)" : "Upload location image"}
           />
           <Input
             id="sceneURI"
@@ -719,7 +757,7 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
             value={formData.sceneURI}
             onChange={handleChange}
             disabled={isCreating || success}
-            placeholder="ipfs://Qm... (auto-filled when image is uploaded)"
+            placeholder="ipfs://Qm... (auto-filled when image is uploaded or if existing scene found)"
             style={{ marginTop: "0.5rem" }}
           />
         </FormGroup>

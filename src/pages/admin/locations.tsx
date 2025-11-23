@@ -1,5 +1,5 @@
 import Head from "next/head";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styled from "styled-components";
 import { Cinzel, Inter } from "next/font/google";
 import { useIsSignedIn } from "@coinbase/cdp-hooks";
@@ -8,6 +8,9 @@ import { useRouter } from "next/router";
 import Link from "next/link";
 import LocationForm from "@/components/LocationForm";
 import { MYSTIC_ISLAND_LOCATIONS, type LocationData } from "@/data/realm-content";
+import { createPublicClient, http } from "viem";
+import { CONTRACT_ADDRESSES, SAGA_CHAINLET, LOCATION_REGISTRY_ABI } from "@/utils/contracts";
+import { clearLocationScenesCache } from "@/utils/location-scenes";
 
 // Fonts
 const cinzel = Cinzel({
@@ -120,22 +123,6 @@ const LocationTitle = styled.h3`
   font-family: var(--font-cinzel);
 `;
 
-const StatusBadge = styled.span<{ created: boolean }>`
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 600;
-  background: ${(props) =>
-    props.created
-      ? "rgba(74, 154, 122, 0.3)"
-      : "rgba(199, 106, 42, 0.3)"};
-  color: ${(props) =>
-    props.created ? colors.jungleCyan : colors.sunsetOrange};
-  border: 1px solid
-    ${(props) =>
-      props.created ? colors.jungleCyan : colors.sunsetOrange};
-`;
-
 const LocationDescription = styled.p`
   color: ${colors.textSecondary};
   margin-bottom: 1.5rem;
@@ -171,13 +158,123 @@ const InfoValue = styled.span`
   font-weight: 600;
 `;
 
+const SyncButton = styled.button`
+  padding: 0.75rem 1.5rem;
+  background: linear-gradient(135deg, ${colors.skyDawn} 0%, ${colors.orchidPurple} 100%);
+  border: none;
+  border-radius: 8px;
+  color: ${colors.textPrimary};
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 1rem;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(74, 122, 154, 0.3);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+`;
+
 export default function AdminLocationsPage() {
   const { isSignedIn } = useIsSignedIn();
   const router = useRouter();
-  const [createdLocations, setCreatedLocations] = useState<Set<string>>(new Set());
+  const [existingLocationSlugs, setExistingLocationSlugs] = useState<Set<string>>(new Set());
+  const [isCheckingLocations, setIsCheckingLocations] = useState(true);
+  const [isSyncingScenes, setIsSyncingScenes] = useState(false);
+  const [syncStatus, setSyncStatus] = useState<string | null>(null);
+
+  // Check which locations already exist on-chain
+  useEffect(() => {
+    async function checkExistingLocations() {
+      if (CONTRACT_ADDRESSES.LOCATION_REGISTRY === "0x0000000000000000000000000000000000000000") {
+        setIsCheckingLocations(false);
+        return;
+      }
+
+      try {
+        const publicClient = createPublicClient({
+          chain: SAGA_CHAINLET as any,
+          transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+        });
+
+        const existingSlugs = new Set<string>();
+
+        // Check each location slug to see if it exists on-chain
+        await Promise.all(
+          MYSTIC_ISLAND_LOCATIONS.map(async (location) => {
+            try {
+              const locationId = await publicClient.readContract({
+                address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+                abi: LOCATION_REGISTRY_ABI,
+                functionName: "getLocationIdBySlug",
+                args: [location.slug],
+              });
+
+              // If locationId is not 0, the location exists
+              if (locationId !== 0n) {
+                existingSlugs.add(location.slug);
+              }
+            } catch (error) {
+              // If the call fails, the location doesn't exist
+              console.log(`Location ${location.slug} does not exist yet`);
+            }
+          })
+        );
+
+        setExistingLocationSlugs(existingSlugs);
+      } catch (error) {
+        console.error("Error checking existing locations:", error);
+      } finally {
+        setIsCheckingLocations(false);
+      }
+    }
+
+    if (isSignedIn) {
+      checkExistingLocations();
+    }
+  }, [isSignedIn]);
 
   const handleLocationCreated = (slug: string) => {
-    setCreatedLocations((prev) => new Set(prev).add(slug));
+    // Add to existing locations set so it disappears from the list
+    setExistingLocationSlugs((prev) => new Set(prev).add(slug));
+    // Clear cache so new scenes can be loaded
+    clearLocationScenesCache();
+  };
+
+  const handleSyncScenes = async () => {
+    setIsSyncingScenes(true);
+    setSyncStatus("Syncing location scenes from contract...");
+    
+    try {
+      const response = await fetch("/api/sync-location-scenes", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to sync scenes");
+      }
+
+      setSyncStatus(`✅ Successfully synced ${data.synced || 0} location scenes!`);
+      clearLocationScenesCache();
+      
+      // Clear status after 3 seconds
+      setTimeout(() => {
+        setSyncStatus(null);
+      }, 3000);
+    } catch (error) {
+      console.error("Error syncing scenes:", error);
+      setSyncStatus(`❌ Error: ${error instanceof Error ? error.message : "Failed to sync scenes"}`);
+    } finally {
+      setIsSyncingScenes(false);
+    }
   };
 
   if (!isSignedIn) {
@@ -223,42 +320,75 @@ export default function AdminLocationsPage() {
           </Header>
 
           <Card>
-            <p style={{ color: colors.textSecondary, marginBottom: "2rem" }}>
+            <p style={{ color: colors.textSecondary, marginBottom: "1rem" }}>
               Upload images and videos for each location, then create them onchain. Images are stored in sceneURI, videos are included in metadata JSON.
             </p>
+            <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginBottom: "1rem" }}>
+              <SyncButton 
+                onClick={handleSyncScenes} 
+                disabled={isSyncingScenes || isCheckingLocations}
+              >
+                {isSyncingScenes ? "Syncing..." : "🔄 Sync Scenes from Contract"}
+              </SyncButton>
+              {syncStatus && (
+                <p style={{ color: syncStatus.includes("✅") ? colors.jungleCyan : colors.sunsetOrange, margin: 0 }}>
+                  {syncStatus}
+                </p>
+              )}
+            </div>
+            {isCheckingLocations && (
+              <p style={{ color: colors.textMuted, fontStyle: "italic" }}>
+                Checking which locations already exist...
+              </p>
+            )}
           </Card>
 
-          {MYSTIC_ISLAND_LOCATIONS.map((location) => {
-            const isCreated = createdLocations.has(location.slug);
-            const biomeLabels: Record<number, string> = {
-              0: "Unknown",
-              1: "Meadow",
-              2: "Forest",
-              3: "Marsh",
-              4: "Mountain",
-              5: "Beach",
-              6: "Ruins",
-              7: "Bazaar",
-              8: "Shrine",
-              9: "Cave",
-              10: "Custom",
-            };
-            const difficultyLabels: Record<number, string> = {
-              0: "None",
-              1: "Easy",
-              2: "Normal",
-              3: "Hard",
-              4: "Mythic",
-            };
+          {isCheckingLocations ? (
+            <Card>
+              <p style={{ color: colors.textSecondary, textAlign: "center" }}>
+                Checking existing locations...
+              </p>
+            </Card>
+          ) : MYSTIC_ISLAND_LOCATIONS.filter((location) => {
+            // Only show locations that don't exist on-chain
+            return !existingLocationSlugs.has(location.slug);
+          }).length === 0 ? (
+            <Card>
+              <p style={{ color: colors.textSecondary, textAlign: "center" }}>
+                🎉 All locations have been created! There are no pending locations to create.
+              </p>
+            </Card>
+          ) : (
+            MYSTIC_ISLAND_LOCATIONS.filter((location) => {
+              // Only show locations that don't exist on-chain
+              return !existingLocationSlugs.has(location.slug);
+            }).map((location) => {
+              const biomeLabels: Record<number, string> = {
+                0: "Unknown",
+                1: "Meadow",
+                2: "Forest",
+                3: "Marsh",
+                4: "Mountain",
+                5: "Beach",
+                6: "Ruins",
+                7: "Bazaar",
+                8: "Shrine",
+                9: "Cave",
+                10: "Custom",
+              };
+              const difficultyLabels: Record<number, string> = {
+                0: "None",
+                1: "Easy",
+                2: "Normal",
+                3: "Hard",
+                4: "Mythic",
+              };
 
-            return (
-              <LocationCard key={location.slug}>
-                <LocationHeader>
-                  <LocationTitle>{location.displayName}</LocationTitle>
-                  <StatusBadge created={isCreated}>
-                    {isCreated ? "✓ Created" : "Pending"}
-                  </StatusBadge>
-                </LocationHeader>
+              return (
+                <LocationCard key={location.slug}>
+                  <LocationHeader>
+                    <LocationTitle>{location.displayName}</LocationTitle>
+                  </LocationHeader>
 
                 <LocationDescription>{location.description}</LocationDescription>
 
@@ -287,7 +417,8 @@ export default function AdminLocationsPage() {
                 />
               </LocationCard>
             );
-          })}
+            })
+          )}
         </Container>
       </PageContainer>
     </>

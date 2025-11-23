@@ -1,0 +1,44 @@
+{
+  "fountain-path-sanctuary": {
+    "slug": "fountain-path-sanctuary",
+    "sceneURI": "ipfs://QmUUCE3CkZ7PYNkWWETop3g7Y8eATc1fzmJmaAd3NiC2vF",
+    "displayName": "The Fountain Path Sanctuary",
+    "metadataURI": "ipfs://Qmd7MzGeWN9kTxaDhT6NDJ39WJutjpV1CHmKqxaAZenJ4n"
+  },
+  "meadow-lumen-tree": {
+    "slug": "meadow-lumen-tree",
+    "sceneURI": "ipfs://QmX4AZfVENThLEvDuw9XUSn5fPRozyx2HfyFzFoosbMVi5",
+    "displayName": "The Meadow of the Lumen Tree",
+    "metadataURI": "ipfs://QmVnkuoH16SUSxvXvEEpvRfRny45AuSRKJ7iA1e4L5MDvN"
+  },
+  "planetarium-sunset-plains": {
+    "slug": "planetarium-sunset-plains",
+    "sceneURI": "ipfs://Qmd1nWmgriEiRScpXmpyyHbb7L1dUtEn4sLHZ5kEygtMjF",
+    "displayName": "The Planetarium of the Sunset Plains",
+    "metadataURI": "ipfs://QmUJrxH84bgn4mX18E2o69Dg19KkxSVhdNRWFUQZ8xpQSa"
+  },
+  "metal-flower-grove": {
+    "slug": "metal-flower-grove",
+    "sceneURI": "ipfs://QmPjKKfj6pkonLk8QB1qeeuGWhVG9MgRHbDUdvvLfVBSSm",
+    "displayName": "The Metal Flower Grove",
+    "metadataURI": "ipfs://QmTwCNeYi6HzWPZjBGV9qFaufooCr6yQdNE2sshedV4skV"
+  },
+  "explorers-main-path": {
+    "slug": "explorers-main-path",
+    "sceneURI": "ipfs://QmYGfK4ienWatfKBGN9fAzsFECBRN3ibGMW4yQxbYwKYKF",
+    "displayName": "The Explorer's Main Path",
+    "metadataURI": "ipfs://QmSQMyKyrjVQWsipfjCNeZvVw8VSp8L2g1womJstiNyDMe"
+  },
+  "island-pond-sacred-water": {
+    "slug": "island-pond-sacred-water",
+    "sceneURI": "ipfs://Qmcpb9pcTrYrm1RLKd7dTTpaKN9SmbpJjUGx9iB1oLPyhK",
+    "displayName": "The Island Pond / Sacred Water Basin",
+    "metadataURI": "ipfs://QmZG58YWfGTDfQwy8BX9Lfco7PtB3UQgGnVYesuMoq8TgY"
+  },
+  "forest-entryway-deep-woods": {
+    "slug": "forest-entryway-deep-woods",
+    "sceneURI": "ipfs://QmUEnKztdkPsKHLNgAwDQx5XQsVFuQaU7XCAcYgxPztRbo",
+    "displayName": "The Forest Entryway / Deep Woods",
+    "metadataURI": "ipfs://QmY1kKpGcVH7YRaQnnKHr9xxR2TdsDzVHfvkxWsjD33JmF"
+  }
+}

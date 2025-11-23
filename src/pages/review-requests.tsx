@@ -2,8 +2,9 @@ import Head from "next/head";
 import { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
-import { useIsSignedIn, useEvmAddress, useSendUserOperation, useCurrentUser } from "@coinbase/cdp-hooks";
+import { useIsSignedIn, useEvmAddress, useCurrentUser } from "@coinbase/cdp-hooks";
 import { AuthButton } from "@coinbase/cdp-react";
+import { signEvmTransaction } from "@coinbase/cdp-core";
 import { CONTRACT_ADDRESSES, SAGA_CHAINLET } from "@/utils/contracts";
 import { createPublicClient, http, encodeFunctionData } from "viem";
 import { useRouter } from "next/router";
@@ -372,9 +373,7 @@ export default function ReviewRequestsPage() {
   const { isSignedIn } = useIsSignedIn();
   const { evmAddress } = useEvmAddress();
   const { currentUser } = useCurrentUser();
-  const { sendUserOperation } = useSendUserOperation();
   const router = useRouter();
-  const smartAccount = currentUser?.evmSmartAccounts?.[0];
 
   const [selectedTribeId, setSelectedTribeId] = useState<string>("");
   const [requests, setRequests] = useState<JoinRequest[]>([]);
@@ -536,8 +535,14 @@ export default function ReviewRequestsPage() {
   }, [selectedTribeId, tribes, isSignedIn, evmAddress]);
 
   const handleVote = async (requestId: number, approved: boolean) => {
-    if (!isSignedIn || !evmAddress || !smartAccount) {
+    if (!isSignedIn || !evmAddress) {
       setErrorMessage("Please connect your wallet first");
+      return;
+    }
+
+    const evmAccount = currentUser?.evmAccounts?.[0];
+    if (!evmAccount) {
+      setErrorMessage("Embedded wallet not available. Please ensure you're properly connected.");
       return;
     }
 
@@ -552,20 +557,54 @@ export default function ReviewRequestsPage() {
         args: [BigInt(requestId), approved],
       });
 
-      // Use sendUserOperation to execute with embedded wallet
-      const result = await sendUserOperation({
-        evmSmartAccount: smartAccount,
-        network: "base-sepolia", // TODO: Update when Saga chainlet is supported
-        calls: [
-          {
-            to: CONTRACT_ADDRESSES.TRIBE_MANAGER as `0x${string}`,
-            data: data as `0x${string}`,
-            value: 0n,
-          },
-        ],
+      // Extract address - evmAccount might be an object with .address or just the address string
+      const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+      if (!accountAddress) {
+        throw new Error("No EOA account address available. Please ensure you're properly connected.");
+      }
+
+      // Create public client for Saga chainlet
+      const publicClient = createPublicClient({
+        chain: SAGA_CHAINLET as any,
+        transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
       });
 
-      console.log("Vote transaction sent:", result);
+      // Get the current nonce and gas estimates from Saga chainlet
+      const [nonce, gasPrice] = await Promise.all([
+        publicClient.getTransactionCount({ address: accountAddress }),
+        publicClient.getGasPrice(),
+      ]);
+
+      // Estimate gas for the transaction
+      const gasEstimate = await publicClient.estimateGas({
+        account: accountAddress,
+        to: CONTRACT_ADDRESSES.TRIBE_MANAGER as `0x${string}`,
+        data: data as `0x${string}`,
+        value: 0n,
+      });
+
+      // Sign the transaction with the embedded wallet
+      const { signedTransaction } = await signEvmTransaction({
+        evmAccount,
+        transaction: {
+          to: CONTRACT_ADDRESSES.TRIBE_MANAGER as `0x${string}`,
+          data: data as `0x${string}`,
+          value: 0n,
+          nonce,
+          gas: gasEstimate,
+          maxFeePerGas: gasPrice,
+          maxPriorityFeePerGas: gasPrice / 2n,
+          chainId: SAGA_CHAINLET.id,
+          type: "eip1559",
+        },
+      });
+
+      // Broadcast the signed transaction to Saga chainlet
+      const hash = await publicClient.sendRawTransaction({
+        serializedTransaction: signedTransaction,
+      });
+
+      console.log("Vote transaction sent via embedded wallet:", hash);
 
       // Reload requests after a short delay
       setTimeout(() => {

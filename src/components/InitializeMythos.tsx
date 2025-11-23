@@ -170,12 +170,61 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
 
       let hash: string;
 
-      // Check for MetaMask FIRST and prioritize it
+      // Prioritize embedded wallet for Saga chainlet transactions
+      // MetaMask is only used as a fallback if embedded wallet is not available
       const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : null;
-      // Check if MetaMask is available (isMetaMask is a MetaMask-specific property)
       const useMetaMask = ethereum && (ethereum.isMetaMask || (!ethereum.isCoinbaseWallet && ethereum.selectedAddress));
       
-      if (useMetaMask) {
+      // Try embedded wallet first (for Saga chainlet)
+      if (evmAccount) {
+        // Extract address - evmAccount might be an object with .address or just the address string
+        const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+        if (!accountAddress) {
+          throw new Error("No EOA account address available. Please ensure you're properly connected.");
+        }
+        
+        const publicClient = createPublicClient({
+          chain: SAGA_CHAINLET as any,
+          transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+        });
+
+        // Get the current nonce and gas estimates from Saga chainlet
+        const [nonce, gasPrice] = await Promise.all([
+          publicClient.getTransactionCount({ address: accountAddress }),
+          publicClient.getGasPrice(),
+        ]);
+
+        // Estimate gas for the transaction
+        const gasEstimate = await publicClient.estimateGas({
+          account: accountAddress,
+          to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
+          data: data as `0x${string}`,
+          value: 0n,
+        });
+
+        // Sign the transaction with the embedded wallet
+        const { signedTransaction } = await signEvmTransaction({
+          evmAccount,
+          transaction: {
+            to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
+            data: data as `0x${string}`,
+            value: 0n,
+            nonce,
+            gas: gasEstimate,
+            maxFeePerGas: gasPrice,
+            maxPriorityFeePerGas: gasPrice / 2n,
+            chainId: SAGA_CHAINLET.id,
+            type: "eip1559",
+          },
+        });
+
+        // Broadcast the signed transaction to Saga chainlet
+        hash = await publicClient.sendRawTransaction({
+          serializedTransaction: signedTransaction,
+        });
+        console.log("Mythos initialization via embedded wallet:", hash);
+      } else if (useMetaMask) {
+        // Fallback to MetaMask if embedded wallet is not available
         // Use MetaMask for signing
         const publicClient = createPublicClient({
           chain: SAGA_CHAINLET as any,
@@ -214,8 +263,8 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
         });
         console.log("Mythos initialization via MetaMask:", hash);
       } else if (smartAccount) {
-        // Try using sendUserOperation with the chain ID as a string
-        // This will work if CDP has bundler infrastructure for Saga chainlet
+        // Try using sendUserOperation as a fallback (though it won't work on Saga chainlet)
+        // This is kept for potential future support or other networks
         try {
           const result = await sendUserOperation({
             evmSmartAccount: smartAccount,
@@ -231,107 +280,11 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
           hash = result.userOperationHash || "";
           console.log("Mythos initialization via sendUserOperation:", result);
         } catch (userOpError) {
-          console.log("sendUserOperation failed, trying signEvmTransaction:", userOpError);
-          
-          // Fallback: Sign transaction and broadcast manually
-          if (!evmAccount) {
-            throw new Error("No EOA account available. Smart account user operations are not supported on Saga chainlet yet.");
-          }
-
-          // Extract address - evmAccount might be an object with .address or just the address string
-          const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
-          if (!accountAddress) {
-            throw new Error("No EOA account address available. Please ensure you're properly connected.");
-          }
-
-          // Create public client for Saga chainlet
-          const publicClient = createPublicClient({
-            chain: SAGA_CHAINLET as any,
-            transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
-          });
-
-          // Get the current nonce and gas estimates from Saga chainlet
-          const [nonce, gasPrice] = await Promise.all([
-            publicClient.getTransactionCount({ address: accountAddress }),
-            publicClient.getGasPrice(),
-          ]);
-
-          // Estimate gas for the transaction
-          const gasEstimate = await publicClient.estimateGas({
-            account: accountAddress,
-            to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
-            data: data as `0x${string}`,
-            value: 0n,
-          });
-
-          // Sign the transaction with the embedded wallet
-          const { signedTransaction } = await signEvmTransaction({
-            evmAccount,
-            transaction: {
-              to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
-              data: data as `0x${string}`,
-              value: 0n,
-              nonce,
-              gas: gasEstimate,
-              maxFeePerGas: gasPrice,
-              maxPriorityFeePerGas: gasPrice / 2n,
-              chainId: SAGA_CHAINLET.id,
-              type: "eip1559",
-            },
-          });
-
-          // Broadcast the signed transaction to Saga chainlet
-          hash = await publicClient.sendRawTransaction({
-            serializedTransaction: signedTransaction,
-          });
-          console.log("Mythos initialization via embedded wallet:", hash);
+          console.log("sendUserOperation failed (expected for Saga chainlet):", userOpError);
+          throw new Error("Smart account user operations are not supported on Saga chainlet. Please use the embedded wallet or MetaMask.");
         }
-      } else if (evmAccount) {
-        // Fall back to embedded wallet signing if no MetaMask or smart account
-        // Extract address - evmAccount might be an object with .address or just the address string
-        const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
-        if (!accountAddress) {
-          throw new Error("No EOA account address available. Please connect MetaMask or ensure you're properly connected.");
-        }
-        
-        const publicClient = createPublicClient({
-          chain: SAGA_CHAINLET as any,
-          transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
-        });
-
-        const [nonce, gasPrice] = await Promise.all([
-          publicClient.getTransactionCount({ address: accountAddress }),
-          publicClient.getGasPrice(),
-        ]);
-
-        const gasEstimate = await publicClient.estimateGas({
-          account: accountAddress,
-          to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
-          data: data as `0x${string}`,
-          value: 0n,
-        });
-
-        const { signedTransaction } = await signEvmTransaction({
-          evmAccount,
-          transaction: {
-            to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
-            data: data as `0x${string}`,
-            value: 0n,
-            nonce,
-            gas: gasEstimate,
-            maxFeePerGas: gasPrice,
-            maxPriorityFeePerGas: gasPrice / 2n,
-            chainId: SAGA_CHAINLET.id,
-            type: "eip1559",
-          },
-        });
-
-        hash = await publicClient.sendRawTransaction({
-          serializedTransaction: signedTransaction,
-        });
-        console.log("Mythos initialization via embedded wallet:", hash);
       } else {
-        throw new Error("No wallet available. Please install and connect MetaMask, or ensure you're properly connected.");
+        throw new Error("No wallet available. Please ensure you're properly connected with an embedded wallet, or install MetaMask as a fallback.");
       }
 
       setTransactionHash(hash);
