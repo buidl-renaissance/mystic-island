@@ -5,5 +5,7 @@
   "MysticIslandModule#LocationRegistry": "0x1A21d327041601670269540541e2717bc2BfDa24",
   "MysticIslandModule#QuestManager": "0x961dC01330b6f554b10aB75952424Bc343065733",
   "MysticIslandModule#TotemManager": "0x065f0cd076d85eA1811530015915Fd2826f143F4",
-  "MysticIslandModule#TribeManager": "0xa83210c8a77BbD021d65d8877D0F69182132339B"
+  "MysticIslandModule#TribeManager": "0xa83210c8a77BbD021d65d8877D0F69182132339B",
+  "MysticIslandModule#LocationUnlock": "0x88caa1006039ab74337CF62bae272a4ca29Bd95c",
+  "MysticIslandModule#Portal": "0x31F4acCa1E06CD861F8D40282B2361498Bfd666A"
 }

@@ -3,12 +3,17 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import styled, { keyframes } from "styled-components";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
-import { useIsSignedIn } from "@coinbase/cdp-hooks";
+import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
 import { AuthButton } from "@coinbase/cdp-react";
 import { createPublicClient, http } from "viem";
 import { CONTRACT_ADDRESSES, SAGA_CHAINLET, LOCATION_REGISTRY_ABI } from "@/utils/contracts";
 import Link from "next/link";
 import type { Location } from "@/hooks/useLocationRegistry";
+import MagicBalance from "@/components/MagicBalance";
+import CollectMagicButton from "@/components/CollectMagicButton";
+import { useUserStats } from "@/hooks/useUserStats";
+import { getChildLocations, isDeadEnd } from "@/utils/locationTree";
+import Portal from "@/components/Portal";
 
 // Fonts
 const cinzel = Cinzel({
@@ -215,6 +220,66 @@ const ErrorMessage = styled.div`
   margin-bottom: 1rem;
 `;
 
+const HeaderBar = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+  gap: 1rem;
+`;
+
+const CollectMagicCard = styled(Card)`
+  background: rgba(232, 168, 85, 0.15);
+  border: 2px solid rgba(232, 168, 85, 0.4);
+  text-align: center;
+`;
+
+const SectionTitle = styled.h2`
+  font-size: 1.8rem;
+  color: ${colors.sunlitGold};
+  margin-bottom: 1.5rem;
+  ${cormorant.variable}
+  font-family: var(--font-cormorant);
+  font-weight: 600;
+`;
+
+
+const ChildrenSection = styled.div`
+  margin-top: 2rem;
+  padding-top: 2rem;
+  border-top: 1px solid rgba(232, 168, 85, 0.2);
+`;
+
+const ChildrenList = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 1rem;
+  margin-top: 1rem;
+`;
+
+const ChildLocationCard = styled(Link)`
+  display: block;
+  padding: 1rem;
+  background: rgba(45, 90, 61, 0.2);
+  border: 1px solid rgba(232, 168, 85, 0.3);
+  border-radius: 8px;
+  text-decoration: none;
+  color: ${colors.textPrimary};
+  transition: all 0.2s;
+
+  &:hover {
+    border-color: ${colors.sunlitGold};
+    transform: translateY(-2px);
+  }
+`;
+
+const DeadEndBadge = styled(Badge)`
+  background: rgba(90, 63, 143, 0.3);
+  border-color: rgba(90, 63, 143, 0.6);
+  color: ${colors.orchidPurple};
+`;
+
 // Biome type names
 const BIOME_NAMES: Record<number, string> = {
   0: "Unknown",
@@ -241,12 +306,16 @@ const DIFFICULTY_NAMES: Record<number, string> = {
 
 export default function LocationDetailPage() {
   const { isSignedIn } = useIsSignedIn();
+  const { evmAddress } = useEvmAddress();
   const router = useRouter();
   const { id } = router.query;
   const [location, setLocation] = useState<Location | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [parentLocation, setParentLocation] = useState<Location | null>(null);
+  const [childLocations, setChildLocations] = useState<Location[]>([]);
+  const [allLocations, setAllLocations] = useState<Location[]>([]);
+  const { refetch: refetchMagicBalance } = useUserStats();
 
   useEffect(() => {
     async function fetchLocation() {
@@ -308,6 +377,61 @@ export default function LocationDetailPage() {
 
         setLocation(locationObj);
 
+        // Fetch all locations to build tree
+        const totalLocations = await publicClient.readContract({
+          address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+          abi: LOCATION_REGISTRY_ABI,
+          functionName: "totalLocations",
+        });
+
+        const allLocs: Location[] = [];
+        for (let i = 1; i <= Number(totalLocations); i++) {
+          try {
+            const locData = await publicClient.readContract({
+              address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+              abi: LOCATION_REGISTRY_ABI,
+              functionName: "getLocation",
+              args: [BigInt(i)],
+            });
+
+            const loc = locData as unknown as {
+              id: bigint;
+              slug: string;
+              displayName: string;
+              description: string;
+              biome: bigint;
+              difficulty: bigint;
+              parentLocationId: bigint;
+              isActive: boolean;
+              sceneURI: string;
+              controller: string;
+              metadataURI: string;
+            };
+
+            allLocs.push({
+              id: loc.id,
+              slug: loc.slug,
+              displayName: loc.displayName,
+              description: loc.description,
+              biome: Number(loc.biome),
+              difficulty: Number(loc.difficulty),
+              parentLocationId: loc.parentLocationId,
+              isActive: loc.isActive,
+              sceneURI: loc.sceneURI,
+              controller: loc.controller as string,
+              metadataURI: loc.metadataURI,
+            });
+          } catch (err) {
+            console.error(`Error fetching location ${i}:`, err);
+          }
+        }
+
+        setAllLocations(allLocs);
+
+        // Get child locations
+        const children = getChildLocations(locationId, allLocs);
+        setChildLocations(children);
+
         // Fetch parent location if it exists
         if (locationObj.parentLocationId !== 0n) {
           try {
@@ -358,7 +482,8 @@ export default function LocationDetailPage() {
     }
 
     fetchLocation();
-  }, [id]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id, evmAddress]);
 
   if (!isSignedIn) {
     return (
@@ -443,6 +568,27 @@ export default function LocationDetailPage() {
         <Container>
           <BackLink href="/explore">← Back to Explore</BackLink>
 
+          <HeaderBar>
+            <div style={{ flex: 1 }} />
+            <MagicBalance />
+          </HeaderBar>
+
+          <CollectMagicCard>
+            <SectionTitle>Collect Magic</SectionTitle>
+            <p style={{ color: colors.textSecondary, marginBottom: "1.5rem" }}>
+              Visit this location to collect Magic tokens! Each location can be visited once per day.
+            </p>
+            {location && (
+              <CollectMagicButton
+                locationId={Number(location.id)}
+                difficulty={location.difficulty}
+                onSuccess={() => {
+                  refetchMagicBalance();
+                }}
+              />
+            )}
+          </CollectMagicCard>
+
           <Card>
             <Title>{location.displayName}</Title>
             <Description>{location.description}</Description>
@@ -516,7 +662,38 @@ export default function LocationDetailPage() {
                   <Badge>{location.isActive ? "✅ Active" : "❌ Inactive"}</Badge>
                 </InfoValue>
               </InfoItem>
+
+
+              {isDeadEnd(location.id, allLocations) && (
+                <InfoItem>
+                  <InfoLabel>Path End</InfoLabel>
+                  <InfoValue>
+                    <DeadEndBadge>🏁 Dead End</DeadEndBadge>
+                  </InfoValue>
+                </InfoItem>
+              )}
             </InfoGrid>
+
+            {/* Show child locations */}
+            {childLocations.length > 0 && (
+              <ChildrenSection>
+                <URITitle>Connected Locations</URITitle>
+                <ChildrenList>
+                  {childLocations.map((child) => (
+                    <ChildLocationCard key={child.id.toString()} href={`/location/${child.id}`}>
+                      <div style={{ fontWeight: 600 }}>
+                        {child.displayName}
+                      </div>
+                    </ChildLocationCard>
+                  ))}
+                </ChildrenList>
+              </ChildrenSection>
+            )}
+
+            {/* Portal component for planetarium */}
+            {location.slug === "planetarium-sunset-plains" && (
+              <Portal locationId={location.id} locationSlug={location.slug} />
+            )}
 
             {location.metadataURI && (
               <URISection>

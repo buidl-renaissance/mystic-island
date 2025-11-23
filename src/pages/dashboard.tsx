@@ -7,6 +7,8 @@ import { AuthButton } from "@coinbase/cdp-react";
 import { CONTRACT_ADDRESSES, SAGA_CHAINLET } from "@/utils/contracts";
 import { createPublicClient, http } from "viem";
 import Link from "next/link";
+import { useTotems } from "@/hooks/useTotems";
+import { useUserStats } from "@/hooks/useUserStats";
 
 // Fonts
 const cinzel = Cinzel({
@@ -224,6 +226,8 @@ interface DashboardData {
 export default function DashboardPage() {
   const { isSignedIn } = useIsSignedIn();
   const { evmAddress } = useEvmAddress();
+  const { totems, isLoading: isLoadingTotems } = useTotems();
+  const { magicBalance, isLoading: isLoadingMagic } = useUserStats();
   const [data, setData] = useState<DashboardData>({
     artifactCount: null,
     tribeMemberships: [],
@@ -365,12 +369,24 @@ export default function DashboardPage() {
               )}
             </StatCard>
             <StatCard>
-              <StatValue>—</StatValue>
-              <StatLabel>Totems</StatLabel>
+              {isLoadingTotems ? (
+                <LoadingSkeleton />
+              ) : (
+                <>
+                  <StatValue>{totems.length}</StatValue>
+                  <StatLabel>Totems</StatLabel>
+                </>
+              )}
             </StatCard>
             <StatCard>
-              <StatValue>—</StatValue>
-              <StatLabel>Magic Balance</StatLabel>
+              {isLoadingMagic ? (
+                <LoadingSkeleton />
+              ) : (
+                <>
+                  <StatValue>{magicBalance ? parseFloat(magicBalance).toFixed(2) : "0"}</StatValue>
+                  <StatLabel>Magic Balance</StatLabel>
+                </>
+              )}
             </StatCard>
           </StatsGrid>
 
@@ -408,10 +424,32 @@ export default function DashboardPage() {
           </Card>
 
           <Card>
+            <SectionTitle>Your Totems</SectionTitle>
+            {isLoadingTotems ? (
+              <LoadingSkeleton />
+            ) : totems.length === 0 ? (
+              <EmptyState>
+                <p>You don't have any totems yet.</p>
+                <ActionButton href="/create-totem">Create Totem</ActionButton>
+              </EmptyState>
+            ) : (
+              <div style={{ color: colors.textSecondary }}>
+                You have {totems.length} totem{totems.length !== 1 ? "s" : ""}
+                <div style={{ marginTop: "1rem" }}>
+                  <ActionButton href="/totems">View All Totems</ActionButton>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          <Card>
             <SectionTitle>Quick Actions</SectionTitle>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
               <ActionButton href="/create-artifact">Create Artifact</ActionButton>
+              <ActionButton href="/create-totem">Create Totem</ActionButton>
+              <ActionButton href="/totems">View Totems</ActionButton>
               <ActionButton href="/join-tribe">Join Tribe</ActionButton>
+              <ActionButton href="/claim-quest">Claim Quest</ActionButton>
               <ActionButton href="/review-requests">Review Requests</ActionButton>
               <ActionButton href="/create-location">Create Location</ActionButton>
               <ActionButton href="/explore">Explore</ActionButton>

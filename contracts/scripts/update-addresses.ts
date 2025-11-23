@@ -52,6 +52,8 @@ async function main() {
       "MysticIslandModule#TribeManager": "TRIBE_MANAGER",
       "MysticIslandModule#IslandMythos": "ISLAND_MYTHOS",
       "MysticIslandModule#LocationRegistry": "LOCATION_REGISTRY",
+      "MysticIslandModule#LocationUnlock": "LOCATION_UNLOCK",
+      "MysticIslandModule#Portal": "PORTAL",
       "MysticIslandModule#TotemManager": "TOTEM_MANAGER",
       "MysticIslandModule#QuestManager": "QUEST_MANAGER",
     };

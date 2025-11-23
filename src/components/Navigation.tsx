@@ -156,6 +156,36 @@ export default function Navigation() {
             Dashboard
           </Link>
           <Link
+            href="/totems"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Totems
+          </Link>
+          <Link
+            href="/create-totem"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Create Totem
+          </Link>
+          <Link
+            href="/claim-quest"
+            style={{
+              color: "#0a0b0d",
+              textDecoration: "none",
+              fontSize: "16px",
+            }}
+          >
+            Claim Quest
+          </Link>
+          <Link
             href="/review-requests"
             style={{
               color: "#0a0b0d",

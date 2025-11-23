@@ -9,8 +9,10 @@ import { buildModule } from "@nomicfoundation/hardhat-ignition/modules";
  * 3. TribeManager - Manages tribes and initiation (needs ArtifactCollection)
  * 4. IslandMythos - Foundational contract for island theme/lore
  * 5. LocationRegistry - Manages locations (needs IslandMythos)
- * 6. TotemManager - Manages totems (needs MagicToken and ArtifactCollection)
- * 7. QuestManager - Handles quest rewards (needs MagicToken)
+ * 6. LocationUnlock - Tracks location unlocks for players (needs LocationRegistry)
+ * 7. Portal - Handles chainlet transitions (needs LocationRegistry and LocationUnlock)
+ * 8. TotemManager - Manages totems (needs MagicToken and ArtifactCollection)
+ * 9. QuestManager - Handles quest rewards (needs MagicToken)
  * 
  * After deployment, you'll need to:
  * - Set QuestManager as a minter for MagicToken (done automatically)
@@ -48,6 +50,12 @@ export default buildModule("MysticIslandModule", (m) => {
     islandMythos,
   ]);
 
+  // 6. Deploy LocationUnlock (needs LocationRegistry address and admin)
+  const locationUnlock = m.contract("LocationUnlock", [locationRegistry, deployer]);
+
+  // 7. Deploy Portal (needs LocationRegistry and LocationUnlock addresses)
+  const portal = m.contract("Portal", [locationRegistry, locationUnlock]);
+
   // 4. Deploy TotemManager (needs MagicToken and ArtifactCollection addresses)
   const totemManager = m.contract("TotemManager", [
     deployer,
@@ -81,6 +89,8 @@ export default buildModule("MysticIslandModule", (m) => {
     questManager,
     islandMythos,
     locationRegistry,
+    locationUnlock,
+    portal,
   };
 });
 

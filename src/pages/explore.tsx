@@ -2,9 +2,9 @@ import Head from "next/head";
 import { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useIsSignedIn } from "@coinbase/cdp-hooks";
 import { AuthButton } from "@coinbase/cdp-react";
-import { useLocationRegistry } from "@/hooks/useLocationRegistry";
+import { useLocationRegistry, type Location } from "@/hooks/useLocationRegistry";
 import Link from "next/link";
 
 // Fonts
@@ -77,10 +77,11 @@ const Container = styled.div`
 
 const Header = styled.div`
   text-align: center;
-  margin-bottom: 3rem;
+  margin-bottom: 2rem;
   ${cinzel.variable}
   font-family: var(--font-cinzel);
 `;
+
 
 const Title = styled.h1`
   font-size: 3rem;
@@ -196,22 +197,6 @@ const LocationDescription = styled.p`
   margin-bottom: 1rem;
 `;
 
-const LocationMeta = styled.div`
-  display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
-  margin-top: 1rem;
-`;
-
-const Badge = styled.span`
-  display: inline-block;
-  padding: 0.25rem 0.75rem;
-  background: rgba(232, 168, 85, 0.2);
-  border: 1px solid rgba(232, 168, 85, 0.4);
-  border-radius: 12px;
-  font-size: 0.8rem;
-  color: ${colors.sunlitGold};
-`;
 
 const ActionButton = styled(Link)`
   display: inline-block;
@@ -286,7 +271,6 @@ const DIFFICULTY_NAMES: Record<number, string> = {
 
 export default function ExplorePage() {
   const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
   const { locations, isLoading, error } = useLocationRegistry();
 
   // Convert IPFS URL to HTTP gateway URL
@@ -301,6 +285,37 @@ export default function ExplorePage() {
     }
     return null;
   };
+
+  // Sort locations in specific order: 5, 2, 4, 7, 6, 3, 1
+  const sortedLocations = (() => {
+    const order = [5n, 2n, 4n, 7n, 6n, 3n, 1n];
+    const locationMap = new Map<bigint, Location>();
+    locations.forEach((loc) => {
+      locationMap.set(loc.id, loc);
+    });
+
+    const sorted: Location[] = [];
+    const added = new Set<bigint>();
+
+    // Add locations in the specified order
+    for (const id of order) {
+      const location = locationMap.get(id);
+      if (location && !added.has(id)) {
+        sorted.push(location);
+        added.add(id);
+      }
+    }
+
+    // Add any remaining locations that weren't in the order list
+    locations.forEach((loc) => {
+      if (!added.has(loc.id)) {
+        sorted.push(loc);
+      }
+    });
+
+    // Filter out the 5th element (location ID 6)
+    return sorted.filter((loc) => loc.id !== 6n);
+  })();
 
   if (!isSignedIn) {
     return (
@@ -335,19 +350,15 @@ export default function ExplorePage() {
         <title>Explore the Island - Mystic Island</title>
         <meta name="description" content="Explore locations and discover the mysteries of Mystic Island" />
       </Head>
-      <PageContainer className={`${cinzel.variable} ${cormorant.variable} ${inter.variable}`}>
+        <PageContainer className={`${cinzel.variable} ${cormorant.variable} ${inter.variable}`}>
         <Container>
           <Header>
             <Title>Explore the Island</Title>
-            <Subtitle>
-              Welcome, explorer {evmAddress?.slice(0, 6)}...{evmAddress?.slice(-4)}
-            </Subtitle>
           </Header>
 
           {error && <ErrorMessage>{error}</ErrorMessage>}
 
           <Card>
-            <SectionTitle>Locations</SectionTitle>
             {isLoading ? (
               <>
                 <LoadingSkeleton />
@@ -361,8 +372,9 @@ export default function ExplorePage() {
               </EmptyState>
             ) : (
               <LocationsGrid>
-                {locations.map((location) => {
+                {sortedLocations.map((location) => {
                   const sceneUrl = convertIpfsUrl(location.sceneURI);
+                  
                   return (
                     <LocationCard key={location.id} href={`/location/${location.id}`}>
                       <ScenePreview>
@@ -371,7 +383,6 @@ export default function ExplorePage() {
                             src={sceneUrl}
                             alt={location.displayName}
                             onError={(e) => {
-                              // Fallback to Pinata gateway if first one fails
                               const target = e.target as HTMLImageElement;
                               if (location.sceneURI.startsWith("ipfs://")) {
                                 const hash = location.sceneURI.replace("ipfs://", "");
@@ -385,14 +396,6 @@ export default function ExplorePage() {
                       </ScenePreview>
                       <LocationName>{location.displayName}</LocationName>
                       <LocationDescription>{location.description}</LocationDescription>
-                      <LocationMeta>
-                        {BIOME_NAMES[location.biome] && (
-                          <Badge>🏞️ {BIOME_NAMES[location.biome]}</Badge>
-                        )}
-                        {DIFFICULTY_NAMES[location.difficulty] && (
-                          <Badge>⚔️ {DIFFICULTY_NAMES[location.difficulty]}</Badge>
-                        )}
-                      </LocationMeta>
                     </LocationCard>
                   );
                 })}

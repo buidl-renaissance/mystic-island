@@ -22,8 +22,7 @@ export function useLocationRegistry() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchLocations() {
+  const fetchLocations = async () => {
       if (CONTRACT_ADDRESSES.LOCATION_REGISTRY === "0x0000000000000000000000000000000000000000") {
         setIsLoading(false);
         return;
@@ -98,11 +97,12 @@ export function useLocationRegistry() {
       } finally {
         setIsLoading(false);
       }
-    }
+    };
 
+  useEffect(() => {
     fetchLocations();
   }, []);
 
-  return { locations, totalLocations, isLoading, error };
+  return { locations, totalLocations, isLoading, error, refetch: fetchLocations };
 }
 

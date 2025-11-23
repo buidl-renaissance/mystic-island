@@ -7,7 +7,7 @@ import { AuthButton } from "@coinbase/cdp-react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import LocationForm from "@/components/LocationForm";
-import { MYSTIC_ISLAND_LOCATIONS, type LocationData } from "@/data/realm-content";
+import { useLocationRegistry } from "@/hooks/useLocationRegistry";
 import { createPublicClient, http } from "viem";
 import { CONTRACT_ADDRESSES, SAGA_CHAINLET, LOCATION_REGISTRY_ABI } from "@/utils/contracts";
 import { clearLocationScenesCache } from "@/utils/location-scenes";
@@ -129,6 +129,15 @@ const LocationDescription = styled.p`
   line-height: 1.6;
 `;
 
+const SectionTitle = styled.h2`
+  font-size: 1.8rem;
+  color: ${colors.sunlitGold};
+  margin-bottom: 1rem;
+  ${cinzel.variable}
+  font-family: var(--font-cinzel);
+  font-weight: 600;
+`;
+
 const InfoGrid = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -184,67 +193,18 @@ const SyncButton = styled.button`
 export default function AdminLocationsPage() {
   const { isSignedIn } = useIsSignedIn();
   const router = useRouter();
-  const [existingLocationSlugs, setExistingLocationSlugs] = useState<Set<string>>(new Set());
-  const [isCheckingLocations, setIsCheckingLocations] = useState(true);
+  const { locations: existingLocations, isLoading: locationsLoading, refetch: refetchLocations } = useLocationRegistry();
   const [isSyncingScenes, setIsSyncingScenes] = useState(false);
   const [syncStatus, setSyncStatus] = useState<string | null>(null);
+  const [showCreateForm, setShowCreateForm] = useState(false);
 
-  // Check which locations already exist on-chain
-  useEffect(() => {
-    async function checkExistingLocations() {
-      if (CONTRACT_ADDRESSES.LOCATION_REGISTRY === "0x0000000000000000000000000000000000000000") {
-        setIsCheckingLocations(false);
-        return;
-      }
-
-      try {
-        const publicClient = createPublicClient({
-          chain: SAGA_CHAINLET as any,
-          transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
-        });
-
-        const existingSlugs = new Set<string>();
-
-        // Check each location slug to see if it exists on-chain
-        await Promise.all(
-          MYSTIC_ISLAND_LOCATIONS.map(async (location) => {
-            try {
-              const locationId = await publicClient.readContract({
-                address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
-                abi: LOCATION_REGISTRY_ABI,
-                functionName: "getLocationIdBySlug",
-                args: [location.slug],
-              });
-
-              // If locationId is not 0, the location exists
-              if (locationId !== 0n) {
-                existingSlugs.add(location.slug);
-              }
-            } catch (error) {
-              // If the call fails, the location doesn't exist
-              console.log(`Location ${location.slug} does not exist yet`);
-            }
-          })
-        );
-
-        setExistingLocationSlugs(existingSlugs);
-      } catch (error) {
-        console.error("Error checking existing locations:", error);
-      } finally {
-        setIsCheckingLocations(false);
-      }
-    }
-
-    if (isSignedIn) {
-      checkExistingLocations();
-    }
-  }, [isSignedIn]);
-
-  const handleLocationCreated = (slug: string) => {
-    // Add to existing locations set so it disappears from the list
-    setExistingLocationSlugs((prev) => new Set(prev).add(slug));
+  const handleLocationCreated = () => {
+    // Refetch locations to update the list
+    refetchLocations();
     // Clear cache so new scenes can be loaded
     clearLocationScenesCache();
+    // Hide the create form
+    setShowCreateForm(false);
   };
 
   const handleSyncScenes = async () => {
@@ -321,14 +281,22 @@ export default function AdminLocationsPage() {
 
           <Card>
             <p style={{ color: colors.textSecondary, marginBottom: "1rem" }}>
-              Upload images and videos for each location, then create them onchain. Images are stored in sceneURI, videos are included in metadata JSON.
+              Create locations in the order you want. Select a parent location that must be visited before this location unlocks.
+              Images are stored in sceneURI, videos are included in metadata JSON.
             </p>
-            <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginBottom: "1rem" }}>
+            <div style={{ display: "flex", gap: "1rem", alignItems: "center", marginBottom: "1rem", flexWrap: "wrap" }}>
               <SyncButton 
                 onClick={handleSyncScenes} 
-                disabled={isSyncingScenes || isCheckingLocations}
+                disabled={isSyncingScenes || locationsLoading}
               >
                 {isSyncingScenes ? "Syncing..." : "🔄 Sync Scenes from Contract"}
+              </SyncButton>
+              <SyncButton
+                onClick={() => setShowCreateForm(!showCreateForm)}
+                disabled={locationsLoading}
+                style={{ background: showCreateForm ? `linear-gradient(135deg, ${colors.jungleCyan} 0%, ${colors.skyDawn} 100%)` : undefined }}
+              >
+                {showCreateForm ? "✕ Cancel" : "➕ Create New Location"}
               </SyncButton>
               {syncStatus && (
                 <p style={{ color: syncStatus.includes("✅") ? colors.jungleCyan : colors.sunsetOrange, margin: 0 }}>
@@ -336,88 +304,108 @@ export default function AdminLocationsPage() {
                 </p>
               )}
             </div>
-            {isCheckingLocations && (
-              <p style={{ color: colors.textMuted, fontStyle: "italic" }}>
-                Checking which locations already exist...
-              </p>
-            )}
           </Card>
 
-          {isCheckingLocations ? (
+          {showCreateForm && (
+            <Card>
+              <LocationHeader>
+                <LocationTitle>Create New Location</LocationTitle>
+              </LocationHeader>
+              <LocationForm
+                onSuccess={handleLocationCreated}
+              />
+            </Card>
+          )}
+
+          {locationsLoading ? (
             <Card>
               <p style={{ color: colors.textSecondary, textAlign: "center" }}>
-                Checking existing locations...
+                Loading existing locations...
               </p>
             </Card>
-          ) : MYSTIC_ISLAND_LOCATIONS.filter((location) => {
-            // Only show locations that don't exist on-chain
-            return !existingLocationSlugs.has(location.slug);
-          }).length === 0 ? (
+          ) : existingLocations.length === 0 ? (
             <Card>
               <p style={{ color: colors.textSecondary, textAlign: "center" }}>
-                🎉 All locations have been created! There are no pending locations to create.
+                No locations have been created yet. Use the "Create New Location" button above to get started.
               </p>
             </Card>
           ) : (
-            MYSTIC_ISLAND_LOCATIONS.filter((location) => {
-              // Only show locations that don't exist on-chain
-              return !existingLocationSlugs.has(location.slug);
-            }).map((location) => {
-              const biomeLabels: Record<number, string> = {
-                0: "Unknown",
-                1: "Meadow",
-                2: "Forest",
-                3: "Marsh",
-                4: "Mountain",
-                5: "Beach",
-                6: "Ruins",
-                7: "Bazaar",
-                8: "Shrine",
-                9: "Cave",
-                10: "Custom",
-              };
-              const difficultyLabels: Record<number, string> = {
-                0: "None",
-                1: "Easy",
-                2: "Normal",
-                3: "Hard",
-                4: "Mythic",
-              };
+            <>
+              <Card>
+                <SectionTitle>Existing Locations ({existingLocations.length})</SectionTitle>
+                <p style={{ color: colors.textSecondary, marginBottom: "1rem" }}>
+                  These locations are already created on-chain. Children of visited locations will automatically unlock.
+                </p>
+              </Card>
+              {existingLocations.map((location) => {
+                const biomeLabels: Record<number, string> = {
+                  0: "Unknown",
+                  1: "Meadow",
+                  2: "Forest",
+                  3: "Marsh",
+                  4: "Mountain",
+                  5: "Beach",
+                  6: "Ruins",
+                  7: "Bazaar",
+                  8: "Shrine",
+                  9: "Cave",
+                  10: "Custom",
+                };
+                const difficultyLabels: Record<number, string> = {
+                  0: "None",
+                  1: "Easy",
+                  2: "Normal",
+                  3: "Hard",
+                  4: "Mythic",
+                };
 
-              return (
-                <LocationCard key={location.slug}>
-                  <LocationHeader>
-                    <LocationTitle>{location.displayName}</LocationTitle>
-                  </LocationHeader>
+                const parentLocation = location.parentLocationId !== 0n
+                  ? existingLocations.find((loc) => loc.id === location.parentLocationId)
+                  : null;
 
-                <LocationDescription>{location.description}</LocationDescription>
+                return (
+                  <LocationCard key={location.id.toString()}>
+                    <LocationHeader>
+                      <LocationTitle>{location.displayName}</LocationTitle>
+                      <InfoValue>ID: {location.id.toString()}</InfoValue>
+                    </LocationHeader>
 
-                <InfoGrid>
-                  <InfoItem>
-                    <InfoLabel>Slug</InfoLabel>
-                    <InfoValue>{location.slug}</InfoValue>
-                  </InfoItem>
-                  <InfoItem>
-                    <InfoLabel>Biome</InfoLabel>
-                    <InfoValue>{biomeLabels[location.biome] || "Unknown"}</InfoValue>
-                  </InfoItem>
-                  <InfoItem>
-                    <InfoLabel>Difficulty</InfoLabel>
-                    <InfoValue>{difficultyLabels[location.difficulty] || "None"}</InfoValue>
-                  </InfoItem>
-                  <InfoItem>
-                    <InfoLabel>Parent Location ID</InfoLabel>
-                    <InfoValue>{location.parentLocationId || "Root"}</InfoValue>
-                  </InfoItem>
-                </InfoGrid>
+                    <LocationDescription>{location.description}</LocationDescription>
 
-                <LocationForm
-                  initialData={location}
-                  onSuccess={() => handleLocationCreated(location.slug)}
-                />
-              </LocationCard>
-            );
-            })
+                    <InfoGrid>
+                      <InfoItem>
+                        <InfoLabel>Slug</InfoLabel>
+                        <InfoValue>{location.slug}</InfoValue>
+                      </InfoItem>
+                      <InfoItem>
+                        <InfoLabel>Biome</InfoLabel>
+                        <InfoValue>{biomeLabels[location.biome] || "Unknown"}</InfoValue>
+                      </InfoItem>
+                      <InfoItem>
+                        <InfoLabel>Difficulty</InfoLabel>
+                        <InfoValue>{difficultyLabels[location.difficulty] || "None"}</InfoValue>
+                      </InfoItem>
+                      <InfoItem>
+                        <InfoLabel>Parent Location</InfoLabel>
+                        <InfoValue>
+                          {parentLocation 
+                            ? `${parentLocation.displayName} (ID: ${parentLocation.id.toString()})`
+                            : location.parentLocationId === 0n 
+                            ? "Root (No Parent)"
+                            : `ID: ${location.parentLocationId.toString()} (not found)`}
+                        </InfoValue>
+                      </InfoItem>
+                      <InfoItem>
+                        <InfoLabel>Scene URI</InfoLabel>
+                        <InfoValue style={{ fontSize: "0.85rem", wordBreak: "break-all" }}>
+                          {location.sceneURI || "Not set"}
+                        </InfoValue>
+                      </InfoItem>
+                    </InfoGrid>
+                  </LocationCard>
+                );
+              })}
+            </>
           )}
         </Container>
       </PageContainer>

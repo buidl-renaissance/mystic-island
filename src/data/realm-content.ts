@@ -21,6 +21,12 @@ export interface LocationData {
   sceneURI: string;
   controller: string; // address or "0x0000000000000000000000000000000000000000"
   metadataURI: string;
+  // Unlock requirements metadata
+  isIntroductionPath?: boolean; // Unlocked by first artifact
+  grantsKey?: boolean; // Grants a key when visited
+  requiresKey?: boolean; // Requires key to unlock
+  requiresTotemPower?: number; // Minimum totem power required
+  unlockRequirement?: string; // Custom requirement description
 }
 
 export const MYSTIC_ISLAND_MYTHOS: MythosData = {
@@ -32,82 +38,96 @@ export const MYSTIC_ISLAND_MYTHOS: MythosData = {
 };
 
 export const MYSTIC_ISLAND_LOCATIONS: LocationData[] = [
-  {
-    slug: "fountain-path-sanctuary",
-    displayName: "The Fountain Path Sanctuary",
-    description: "Statue at the entrance to a forest path. Overgrown stone with a lantern hanging from a tree. Activation sequence: key dropped → stone bridge rises from pond → statue may animate.",
-    biome: 2, // Forest
-    difficulty: 1, // Easy
-    parentLocationId: 0,
-    sceneURI: "", // Will be populated when image is uploaded
-    controller: "0x0000000000000000000000000000000000000000",
-    metadataURI: "", // Will be populated when metadata is created
-  },
-  {
-    slug: "planetarium-sunset-plains",
-    displayName: "The Planetarium of the Sunset Plains",
-    description: "Planetarium-like building surrounded by water. Explorer in tiger jacket approaches. Epic sunset sky with water reflecting light. Open plain rather than dense forest.",
-    biome: 1, // Meadow (open plain)
-    difficulty: 2, // Normal
-    parentLocationId: 0,
-    sceneURI: "", // Will be populated when image is uploaded
-    controller: "0x0000000000000000000000000000000000000000",
-    metadataURI: "", // Will be populated when metadata is created
-  },
-  {
-    slug: "meadow-lumen-tree",
-    displayName: "The Meadow of the Lumen Tree",
-    description: "Vast grassy meadow with a metallic Tree of Light (LED-inspired). Spiraling walkway leads to the tree. Star-pricked sky with purple–orange glow. Flowers and soft hills surround the area.",
-    biome: 1, // Meadow
-    difficulty: 1, // Easy
-    parentLocationId: 0,
-    sceneURI: "", // Will be populated when image is uploaded
-    controller: "0x0000000000000000000000000000000000000000",
-    metadataURI: "", // Will be populated when metadata is created
-  },
-  {
-    slug: "metal-flower-grove",
-    displayName: "The Metal Flower Grove",
-    description: "Inspired by the real-world metal flower sculpture. Set in a meadow with a pond. Trees and wildflowers surround the area. Distant tree line with soft forestry.",
-    biome: 1, // Meadow
-    difficulty: 1, // Easy
-    parentLocationId: 0,
-    sceneURI: "", // Will be populated when image is uploaded
-    controller: "0x0000000000000000000000000000000000000000",
-    metadataURI: "", // Will be populated when metadata is created
-  },
-  {
-    slug: "forest-entryway-deep-woods",
-    displayName: "The Forest Entryway / Deep Woods",
-    description: "A path that goes deep into the forest. Thick canopy and overgrowth create a dense, mysterious atmosphere. Heavy vegetation with hidden lanterns guiding the way.",
-    biome: 2, // Forest
-    difficulty: 2, // Normal
-    parentLocationId: 0,
-    sceneURI: "", // Will be populated when image is uploaded
-    controller: "0x0000000000000000000000000000000000000000",
-    metadataURI: "", // Will be populated when metadata is created
-  },
-  {
-    slug: "island-pond-sacred-water",
-    displayName: "The Island Pond / Sacred Water Basin",
-    description: "Appears in multiple scenes (fountain, planetarium, metal flower). Central water source in island lore. Used for magical activations and rituals. The sacred heart of the island's mystical energy.",
-    biome: 3, // Marsh (water-based)
-    difficulty: 1, // Easy
-    parentLocationId: 0,
-    sceneURI: "", // Will be populated when image is uploaded
-    controller: "0x0000000000000000000000000000000000000000",
-    metadataURI: "", // Will be populated when metadata is created
-  },
+  // ROOT NODE - The Explorer's Main Path
   {
     slug: "explorers-main-path",
     displayName: "The Explorer's Main Path",
-    description: "Repeated motif of the tiger-jacket explorer walking along primary routes. Connects major landmarks across the island. Clean stone and dirt walkways form the backbone of island navigation.",
-    biome: 1, // Meadow (path through various biomes)
+    description: "Primary navigational spine of Mystic Island. Stone–dirt hybrid path repeatedly depicted with the tiger-jacket explorer walking toward major landmarks. Connects all other starting regions.",
+    biome: 1, // Meadow
     difficulty: 0, // None (entry point)
     parentLocationId: 0,
-    sceneURI: "", // Will be populated when image is uploaded
+    sceneURI: "", // Will be populated from location-scenes.json
     controller: "0x0000000000000000000000000000000000000000",
-    metadataURI: "", // Will be populated when metadata is created
+    metadataURI: "",
+    isIntroductionPath: true,
+  },
+  
+  // PATH A — Metal Flower Branch
+  {
+    slug: "metal-flower-grove",
+    displayName: "The Metal Flower Grove",
+    description: "Grove of giant metallic flower sculptures set around a reflective pond. Inspired by the real-world steel blossom. Meadow grasses, wildflowers, and a distant tree line set the tone.",
+    biome: 1, // Meadow
+    difficulty: 1, // Easy
+    parentLocationId: 1, // Explorer's Main Path
+    sceneURI: "", // Will be populated from location-scenes.json
+    controller: "0x0000000000000000000000000000000000000000",
+    metadataURI: "",
+  },
+  
+  // A1. The Planetarium of the Sunset Plains
+  {
+    slug: "planetarium-sunset-plains",
+    displayName: "The Planetarium of the Sunset Plains",
+    description: "A luminous planetarium-like structure surrounded by shallow water. The tiger-jacket explorer approaches as the sky burns with purples, oranges, and late-evening gold. Wide plains instead of dense forest.",
+    biome: 1, // Meadow
+    difficulty: 2, // Normal
+    parentLocationId: 2, // Metal Flower Grove
+    sceneURI: "", // Will be populated from location-scenes.json
+    controller: "0x0000000000000000000000000000000000000000",
+    metadataURI: "",
+  },
+  
+  // PATH B — Lumen Meadow Branch
+  {
+    slug: "meadow-lumen-tree",
+    displayName: "The Meadow of the Lumen Tree",
+    description: "A vast open meadow illuminated by a towering metallic Tree of Light with glowing magenta branches. A spiraling walkway rises around its trunk. Soft hills and bioluminescent flora surround the area.",
+    biome: 1, // Meadow
+    difficulty: 1, // Easy
+    parentLocationId: 1, // Explorer's Main Path
+    sceneURI: "", // Will be populated from location-scenes.json
+    controller: "0x0000000000000000000000000000000000000000",
+    metadataURI: "",
+  },
+  
+  // PATH C — Forest Branch
+  {
+    slug: "forest-entryway-deep-woods",
+    displayName: "The Forest Entryway / Deep Woods",
+    description: "A shadowy forest path descending into overgrowth. Lanterns dangle from branches. Hidden clearings and trails lead deeper into unknown regions of the island.",
+    biome: 2, // Forest
+    difficulty: 1, // Easy (early section), scalable later
+    parentLocationId: 1, // Explorer's Main Path
+    sceneURI: "", // Will be populated from location-scenes.json
+    controller: "0x0000000000000000000000000000000000000000",
+    metadataURI: "",
+  },
+  
+  // C1. The Statue at the Forest Path Entrance (The Sanctuary Gate)
+  {
+    slug: "sanctuary-gate",
+    displayName: "The Statue at the Forest Path Entrance",
+    description: "Overgrown stone guardian with a lantern hanging from a nearby branch. Partially submerged in pondwater. Acts as a ritual initiation point. Activation sequence: Explorer drops a key-shaped artifact into the basin. Stones rumble. A submerged stone bridge rises from the pond. The statue's eyes glow; slight animation possible post-activation.",
+    biome: 3, // Marsh / Forest Edge
+    difficulty: 1, // Easy
+    parentLocationId: 5, // Forest Entryway
+    sceneURI: "", // Will use fountain-path-sanctuary scene URI
+    controller: "0x0000000000000000000000000000000000000000",
+    metadataURI: "",
+  },
+  
+  // PATH D — Central Waters
+  {
+    slug: "island-pond-sacred-water",
+    displayName: "The Island Pond / Sacred Water Basin",
+    description: "Recurring body of water that appears in the planetarium, grove, and sanctuary scenes. It is the central magical reservoir of the island—source of rituals, activation sequences, and elemental unlocking.",
+    biome: 3, // Marsh
+    difficulty: 1, // Easy
+    parentLocationId: 1, // Explorer's Main Path
+    sceneURI: "", // Will be populated from location-scenes.json
+    controller: "0x0000000000000000000000000000000000000000",
+    metadataURI: "",
   },
 ];
 
