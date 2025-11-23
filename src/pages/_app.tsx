@@ -5,6 +5,8 @@ import Link from "next/link";
 import { CDPReactProvider, type Config, type Theme } from "@coinbase/cdp-react";
 import { CDPHooksProvider } from "@coinbase/cdp-hooks";
 import { useAutoDeployWallet } from "@/hooks/useAutoDeployWallet";
+import { useUserStats } from "@/hooks/useUserStats";
+import { useIsSignedIn } from "@coinbase/cdp-hooks";
 import styled from "styled-components";
 import AccountDropdown from "@/components/AccountDropdown";
 
@@ -49,8 +51,8 @@ const TopBar = styled.div`
   left: 0;
   right: 0;
   height: 64px;
-  background-color: #ffffff;
-  border-bottom: 1px solid #dcdfe4;
+  background-color: #0A1410;
+  border-bottom: 1px solid rgba(232, 168, 85, 0.2);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -61,35 +63,106 @@ const TopBar = styled.div`
 const Logo = styled(Link)`
   font-size: 20px;
   font-weight: 700;
-  color: #098551;
+  color: #E8A855;
   text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: #C76A2A;
+  }
+`;
+
+const StatsContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-right: 1rem;
+`;
+
+const StatItem = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: rgba(45, 90, 61, 0.3);
+  border: 1px solid rgba(232, 168, 85, 0.2);
+  border-radius: 8px;
+  color: #F5F5F5;
+  font-size: 0.9rem;
+  font-weight: 600;
+`;
+
+const StatValue = styled.span`
+  color: #E8A855;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+`;
+
+const StatEmoji = styled.span`
+  font-size: 1.1rem;
+  line-height: 1;
 `;
 
 function AppContent({ Component, pageProps }: AppProps) {
   const router = useRouter();
+  const { isSignedIn } = useIsSignedIn();
+  const { artifactCount, magicBalance, isLoading: statsLoading } = useUserStats();
   const isOnboardingPage = router.pathname === '/onboarding';
   const isStartPage = router.pathname === '/start';
   const isDeployWalletPage = router.pathname === '/deploy-wallet';
   const isAuthPage = router.pathname === '/auth';
   const isExplorePage = router.pathname === '/explore';
+  const isIndexPage = router.pathname === '/';
+  const isAboutPage = router.pathname === '/about';
   
-  // Hide top bar on onboarding and start pages
-  const showTopBar = !isOnboardingPage && !isStartPage;
+  // Hide top bar on onboarding, start, index, and about pages
+  const showTopBar = !isOnboardingPage && !isStartPage && !isIndexPage && !isAboutPage;
 
   // Only run auto-deployment on pages where it makes sense
   // Skip on deploy-wallet, auth, and explore pages to avoid redirect loops
   const shouldAutoDeploy = !isDeployWalletPage && !isAuthPage && !isExplorePage;
   
-  if (shouldAutoDeploy) {
-    useAutoDeployWallet();
-  }
+  // Always call the hook (hooks must be called unconditionally)
+  // The hook itself will handle the conditional logic
+  useAutoDeployWallet(shouldAutoDeploy);
+
+  // Format magic balance for display
+  const formatMagicBalance = (balance: string | null) => {
+    if (!balance) return "0";
+    const num = parseFloat(balance);
+    if (num === 0) return "0";
+    if (num < 0.01) return "<0.01";
+    if (num < 1000) return num.toFixed(2);
+    if (num < 1000000) return `${(num / 1000).toFixed(2)}K`;
+    return `${(num / 1000000).toFixed(2)}M`;
+  };
 
   return (
     <>
       {showTopBar && (
         <TopBar>
           <Logo href="/">Mystic Island</Logo>
-          <AccountDropdown />
+          <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+            {isSignedIn && (
+              <StatsContainer>
+                <StatItem>
+                  <StatValue>
+                    <StatEmoji>🏺</StatEmoji>
+                    <span>{statsLoading ? "..." : (artifactCount ?? 0)}</span>
+                  </StatValue>
+                </StatItem>
+                <StatItem>
+                  <StatValue>
+                    <StatEmoji>✨</StatEmoji>
+                    <span>{statsLoading ? "..." : formatMagicBalance(magicBalance)}</span>
+                  </StatValue>
+                </StatItem>
+              </StatsContainer>
+            )}
+            <AccountDropdown />
+          </div>
         </TopBar>
       )}
       <div style={{ marginTop: showTopBar ? '64px' : '0' }}>

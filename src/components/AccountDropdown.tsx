@@ -65,21 +65,21 @@ export default function AccountDropdown() {
           justifyContent: "center",
           gap: "8px",
           padding: "8px 16px",
-          backgroundColor: showDropdown ? "#f1f5f9" : "#ffffff",
-          border: "1px solid #e2e8f0",
+          backgroundColor: showDropdown ? "rgba(45, 90, 61, 0.5)" : "rgba(45, 90, 61, 0.3)",
+          border: "1px solid rgba(232, 168, 85, 0.3)",
           borderRadius: "var(--cdp-web-borderRadius-full)",
           cursor: "pointer",
           transition: "all 0.2s ease",
-          boxShadow: showDropdown ? "0 2px 4px rgba(0, 0, 0, 0.1)" : "0 1px 2px rgba(0, 0, 0, 0.05)",
+          boxShadow: showDropdown ? "0 2px 4px rgba(0, 0, 0, 0.3)" : "0 1px 2px rgba(0, 0, 0, 0.2)",
         }}
         onMouseEnter={(e) => {
           if (!showDropdown) {
-            e.currentTarget.style.backgroundColor = "#f8f9fa";
+            e.currentTarget.style.backgroundColor = "rgba(45, 90, 61, 0.4)";
           }
         }}
         onMouseLeave={(e) => {
           if (!showDropdown) {
-            e.currentTarget.style.backgroundColor = "#ffffff";
+            e.currentTarget.style.backgroundColor = "rgba(45, 90, 61, 0.3)";
           }
         }}
         aria-label="Account menu"
@@ -90,11 +90,11 @@ export default function AccountDropdown() {
             width: "32px",
             height: "32px",
             borderRadius: "50%",
-            backgroundColor: "#098551",
+            backgroundColor: "#E8A855",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
-            color: "#ffffff",
+            color: "#0A1410",
             fontSize: "14px",
             fontWeight: "600",
           }}
@@ -129,7 +129,7 @@ export default function AccountDropdown() {
           style={{
             transform: showDropdown ? "rotate(180deg)" : "rotate(0deg)",
             transition: "transform 0.2s ease",
-            color: "#4a5568",
+            color: "#E8A855",
           }}
         >
           <polyline points="6 9 12 15 18 9"></polyline>
@@ -145,10 +145,10 @@ export default function AccountDropdown() {
             right: 0,
             marginTop: "8px",
             minWidth: "320px",
-            backgroundColor: "#ffffff",
-            border: "1px solid #e2e8f0",
+            backgroundColor: "#0A1410",
+            border: "1px solid rgba(232, 168, 85, 0.3)",
             borderRadius: "12px",
-            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.12)",
+            boxShadow: "0 4px 16px rgba(0, 0, 0, 0.5)",
             zIndex: 1000,
             overflow: "hidden",
             animation: "fadeIn 0.15s ease-out",
@@ -157,15 +157,15 @@ export default function AccountDropdown() {
           <div
             style={{
               padding: "20px",
-              borderBottom: "1px solid #e2e8f0",
-              backgroundColor: "#f8f9fa",
+              borderBottom: "1px solid rgba(232, 168, 85, 0.2)",
+              backgroundColor: "rgba(45, 90, 61, 0.2)",
             }}
           >
             <div
               style={{
                 fontSize: "11px",
                 fontWeight: "700",
-                color: "#64748b",
+                color: "#D0D0D0",
                 marginBottom: "16px",
                 textTransform: "uppercase",
                 letterSpacing: "0.5px",
@@ -174,27 +174,27 @@ export default function AccountDropdown() {
               Account
             </div>
             {evmAddress && (
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "12px",
-                  padding: "12px",
-                  backgroundColor: "#ffffff",
-                  borderRadius: "8px",
-                  border: "1px solid #e2e8f0",
-                }}
-              >
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "12px",
+                    padding: "12px",
+                    backgroundColor: "rgba(10, 20, 16, 0.5)",
+                    borderRadius: "8px",
+                    border: "1px solid rgba(232, 168, 85, 0.2)",
+                  }}
+                >
                 <div
                   style={{
                     width: "40px",
                     height: "40px",
                     borderRadius: "50%",
-                    backgroundColor: "#098551",
+                    backgroundColor: "#E8A855",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    color: "#ffffff",
+                    color: "#0A1410",
                     fontSize: "14px",
                     fontWeight: "600",
                     flexShrink: 0,
@@ -207,7 +207,7 @@ export default function AccountDropdown() {
                     style={{
                       fontSize: "13px",
                       fontFamily: "monospace",
-                      color: "#0a0b0d",
+                      color: "#F5F5F5",
                       wordBreak: "break-all",
                       lineHeight: "1.4",
                     }}
@@ -217,7 +217,7 @@ export default function AccountDropdown() {
                   <div
                     style={{
                       fontSize: "11px",
-                      color: "#64748b",
+                      color: "#D0D0D0",
                       marginTop: "4px",
                     }}
                   >
@@ -232,8 +232,8 @@ export default function AccountDropdown() {
                     alignItems: "center",
                     justifyContent: "center",
                     padding: "8px",
-                    backgroundColor: copied ? "#098551" : "#f1f5f9",
-                    color: copied ? "#ffffff" : "#4a5568",
+                    backgroundColor: copied ? "#E8A855" : "rgba(45, 90, 61, 0.3)",
+                    color: copied ? "#0A1410" : "#E8A855",
                     border: "none",
                     borderRadius: "6px",
                     cursor: "pointer",
@@ -242,12 +242,12 @@ export default function AccountDropdown() {
                   }}
                   onMouseEnter={(e) => {
                     if (!copied) {
-                      e.currentTarget.style.backgroundColor = "#e2e8f0";
+                      e.currentTarget.style.backgroundColor = "rgba(45, 90, 61, 0.5)";
                     }
                   }}
                   onMouseLeave={(e) => {
                     if (!copied) {
-                      e.currentTarget.style.backgroundColor = "#f1f5f9";
+                      e.currentTarget.style.backgroundColor = "rgba(45, 90, 61, 0.3)";
                     }
                   }}
                 >
@@ -304,7 +304,7 @@ export default function AccountDropdown() {
             </DropdownLink>
           </div>
 
-          <div style={{ padding: "12px", borderTop: "1px solid #e2e8f0" }}>
+          <div style={{ padding: "12px", borderTop: "1px solid rgba(232, 168, 85, 0.2)" }}>
             <AuthButton />
           </div>
         </div>
@@ -323,14 +323,14 @@ function DropdownLink({ href, onClick, children }: { href: string; onClick: () =
         alignItems: "center",
         gap: "12px",
         padding: "12px 16px",
-        color: "#0a0b0d",
+        color: "#F5F5F5",
         textDecoration: "none",
         fontSize: "14px",
         borderRadius: "8px",
         transition: "all 0.2s ease",
       }}
       onMouseEnter={(e) => {
-        e.currentTarget.style.backgroundColor = "#f1f5f9";
+        e.currentTarget.style.backgroundColor = "rgba(45, 90, 61, 0.3)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.backgroundColor = "transparent";

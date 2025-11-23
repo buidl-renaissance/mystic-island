@@ -140,7 +140,8 @@ const LocationCard = styled(Link)`
   transition: all 0.3s ease;
   cursor: pointer;
   text-decoration: none;
-  display: block;
+  display: flex;
+  flex-direction: column;
   color: inherit;
 
   &:hover {
@@ -148,6 +149,35 @@ const LocationCard = styled(Link)`
     border-color: rgba(232, 168, 85, 0.5);
     box-shadow: 0 8px 24px rgba(232, 168, 85, 0.2);
   }
+`;
+
+const ScenePreview = styled.div`
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 1rem;
+  background: rgba(10, 20, 16, 0.5);
+  border: 1px solid rgba(232, 168, 85, 0.2);
+  position: relative;
+`;
+
+const SceneImage = styled.img`
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+`;
+
+const ScenePlaceholder = styled.div`
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: ${colors.textMuted};
+  font-size: 0.9rem;
+  background: rgba(10, 20, 16, 0.3);
 `;
 
 const LocationName = styled.h3`
@@ -259,6 +289,19 @@ export default function ExplorePage() {
   const { evmAddress } = useEvmAddress();
   const { locations, isLoading, error } = useLocationRegistry();
 
+  // Convert IPFS URL to HTTP gateway URL
+  const convertIpfsUrl = (uri: string) => {
+    if (!uri) return null;
+    if (uri.startsWith("ipfs://")) {
+      const hash = uri.replace("ipfs://", "");
+      return `https://ipfs.io/ipfs/${hash}`;
+    }
+    if (uri.startsWith("http://") || uri.startsWith("https://")) {
+      return uri;
+    }
+    return null;
+  };
+
   if (!isSignedIn) {
     return (
       <>
@@ -318,32 +361,43 @@ export default function ExplorePage() {
               </EmptyState>
             ) : (
               <LocationsGrid>
-                {locations.map((location) => (
-                  <LocationCard key={location.id} href={`/location/${location.id}`}>
-                    <LocationName>{location.displayName}</LocationName>
-                    <LocationDescription>{location.description}</LocationDescription>
-                    <LocationMeta>
-                      {BIOME_NAMES[location.biome] && (
-                        <Badge>🏞️ {BIOME_NAMES[location.biome]}</Badge>
-                      )}
-                      {DIFFICULTY_NAMES[location.difficulty] && (
-                        <Badge>⚔️ {DIFFICULTY_NAMES[location.difficulty]}</Badge>
-                      )}
-                    </LocationMeta>
-                  </LocationCard>
-                ))}
+                {locations.map((location) => {
+                  const sceneUrl = convertIpfsUrl(location.sceneURI);
+                  return (
+                    <LocationCard key={location.id} href={`/location/${location.id}`}>
+                      <ScenePreview>
+                        {sceneUrl ? (
+                          <SceneImage
+                            src={sceneUrl}
+                            alt={location.displayName}
+                            onError={(e) => {
+                              // Fallback to Pinata gateway if first one fails
+                              const target = e.target as HTMLImageElement;
+                              if (location.sceneURI.startsWith("ipfs://")) {
+                                const hash = location.sceneURI.replace("ipfs://", "");
+                                target.src = `https://gateway.pinata.cloud/ipfs/${hash}`;
+                              }
+                            }}
+                          />
+                        ) : (
+                          <ScenePlaceholder>No Scene Image</ScenePlaceholder>
+                        )}
+                      </ScenePreview>
+                      <LocationName>{location.displayName}</LocationName>
+                      <LocationDescription>{location.description}</LocationDescription>
+                      <LocationMeta>
+                        {BIOME_NAMES[location.biome] && (
+                          <Badge>🏞️ {BIOME_NAMES[location.biome]}</Badge>
+                        )}
+                        {DIFFICULTY_NAMES[location.difficulty] && (
+                          <Badge>⚔️ {DIFFICULTY_NAMES[location.difficulty]}</Badge>
+                        )}
+                      </LocationMeta>
+                    </LocationCard>
+                  );
+                })}
               </LocationsGrid>
             )}
-          </Card>
-
-          <Card>
-            <SectionTitle>Quick Actions</SectionTitle>
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
-              <ActionButton href="/dashboard">View Dashboard</ActionButton>
-              <ActionButton href="/create-location">Create Location</ActionButton>
-              <ActionButton href="/join-tribe">Join Tribe</ActionButton>
-              <ActionButton href="/create-artifact">Create Artifact</ActionButton>
-            </div>
           </Card>
         </Container>
       </PageContainer>

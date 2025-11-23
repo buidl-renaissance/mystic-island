@@ -91,8 +91,9 @@ function useWalletDeploymentStatus(address: string | null) {
 /**
  * Hook to automatically deploy wallet if not deployed after authentication
  * Redirects to /explore after successful deployment
+ * @param enabled - Whether to enable auto-deployment (default: true)
  */
-export function useAutoDeployWallet() {
+export function useAutoDeployWallet(enabled: boolean = true) {
   const { isSignedIn } = useIsSignedIn();
   const { currentUser } = useCurrentUser();
   const router = useRouter();
@@ -124,7 +125,7 @@ export function useAutoDeployWallet() {
 
   // Auto-deploy logic
   useEffect(() => {
-    if (!isSignedIn || !eoaAddress) {
+    if (!enabled || !isSignedIn || !eoaAddress) {
       setHasChecked(false);
       return;
     }
@@ -157,7 +158,7 @@ export function useAutoDeployWallet() {
       // Don't redirect - user might be on a specific page
       return;
     }
-  }, [isSignedIn, eoaAddress, isDeployed, isChecking, isDeploying, hasChecked, justDeployed, deployWallet, router]);
+  }, [enabled, isSignedIn, eoaAddress, isDeployed, isChecking, isDeploying, hasChecked, justDeployed, deployWallet, router]);
 
   // Poll for deployment status after deployment attempt
   useEffect(() => {
