@@ -159,6 +159,19 @@ const SceneImage = styled.img`
   display: block;
 `;
 
+const SceneVideo = styled.video`
+  width: 100%;
+  max-width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 2px solid rgba(232, 168, 85, 0.3);
+  margin-top: 1rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  object-fit: contain;
+  display: block;
+`;
+
 const ImageContainer = styled.div`
   margin-top: 1rem;
 `;
@@ -444,26 +457,64 @@ export default function LocationDetailPage() {
             <Title>{location.displayName}</Title>
             <Description>{location.description}</Description>
 
-            {/* Display scene image if available */}
+            {/* Display scene video or image if available */}
             {location.sceneURI && (
               <ImageContainer>
-                <SceneImage
-                  src={convertIpfsUrl(location.sceneURI)}
-                  alt={location.displayName}
-                  onError={(e) => {
-                    // Fallback to another gateway if first one fails
-                    const target = e.target as HTMLImageElement;
-                    if (location.sceneURI.startsWith("ipfs://")) {
-                      const hash = location.sceneURI.replace("ipfs://", "");
-                      target.src = `https://gateway.pinata.cloud/ipfs/${hash}`;
-                    }
-                  }}
-                />
-                <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: colors.textMuted }}>
-                  <URILink href={convertIpfsUrl(location.sceneURI)} target="_blank" rel="noopener noreferrer">
-                    View full size
-                  </URILink>
-                </div>
+                {/* Show video for specific locations */}
+                {Number(location.id) === 5 && location.slug === "explorers-main-path" ? (
+                  <SceneVideo
+                    src="/videos/explorers-main-path.mp4"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  >
+                    Your browser does not support the video tag.
+                  </SceneVideo>
+                ) : Number(location.id) === 1 ? (
+                  <SceneVideo
+                    src="/videos/sancuary.mp4"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  >
+                    Your browser does not support the video tag.
+                  </SceneVideo>
+                ) : Number(location.id) === 7 ? (
+                  <SceneVideo
+                    src="/videos/key.mov"
+                    controls
+                    autoPlay
+                    loop
+                    muted
+                    playsInline
+                  >
+                    Your browser does not support the video tag.
+                  </SceneVideo>
+                ) : (
+                  <SceneImage
+                    src={convertIpfsUrl(location.sceneURI)}
+                    alt={location.displayName}
+                    onError={(e) => {
+                      // Fallback to another gateway if first one fails
+                      const target = e.target as HTMLImageElement;
+                      if (location.sceneURI.startsWith("ipfs://")) {
+                        const hash = location.sceneURI.replace("ipfs://", "");
+                        target.src = `https://gateway.pinata.cloud/ipfs/${hash}`;
+                      }
+                    }}
+                  />
+                )}
+                {Number(location.id) !== 5 && Number(location.id) !== 1 && Number(location.id) !== 7 && (
+                  <div style={{ marginTop: "0.5rem", fontSize: "0.85rem", color: colors.textMuted }}>
+                    <URILink href={convertIpfsUrl(location.sceneURI)} target="_blank" rel="noopener noreferrer">
+                      View full size
+                    </URILink>
+                  </div>
+                )}
               </ImageContainer>
             )}
 

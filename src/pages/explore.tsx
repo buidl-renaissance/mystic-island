@@ -1,9 +1,13 @@
 import Head from "next/head";
+import { useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
-import { useIsSignedIn } from "@coinbase/cdp-hooks";
+import { useIsSignedIn, useEvmAddress, useCurrentUser, useSignEvmTransaction } from "@coinbase/cdp-hooks";
 import { AuthButton } from "@coinbase/cdp-react";
 import { useLocationRegistry, type Location } from "@/hooks/useLocationRegistry";
+import { useUserStats } from "@/hooks/useUserStats";
+import { CONTRACT_ADDRESSES, SAGA_CHAINLET, TOTEM_MANAGER_ABI, ERC20_ABI } from "@/utils/contracts";
+import { createPublicClient, createWalletClient, http, custom, encodeFunctionData, parseEther } from "viem";
 import Link from "next/link";
 
 // Fonts
@@ -56,6 +60,15 @@ const float = keyframes`
 const shimmer = keyframes`
   0% { background-position: -1000px 0; }
   100% { background-position: 1000px 0; }
+`;
+
+const glow = keyframes`
+  0%, 100% {
+    box-shadow: 0 0 20px rgba(232, 168, 85, 0.5), 0 0 40px rgba(232, 168, 85, 0.3), 0 0 60px rgba(232, 168, 85, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 30px rgba(232, 168, 85, 0.8), 0 0 60px rgba(232, 168, 85, 0.5), 0 0 90px rgba(232, 168, 85, 0.3);
+  }
 `;
 
 // Styled Components
@@ -243,9 +256,95 @@ const ErrorMessage = styled.div`
   margin-bottom: 1rem;
 `;
 
+const PowerUpCard = styled.div`
+  background: rgba(45, 90, 61, 0.3);
+  border: 2px solid rgba(232, 168, 85, 0.5);
+  border-radius: 16px;
+  padding: 2rem;
+  backdrop-filter: blur(10px);
+  margin-top: 3rem;
+  text-align: center;
+`;
+
+const PowerUpTitle = styled.h2`
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: ${colors.sunlitGold};
+  margin-bottom: 0.5rem;
+  text-shadow: 0 0 20px rgba(232, 168, 85, 0.3);
+  ${cinzel.variable}
+  font-family: var(--font-cinzel);
+`;
+
+const PowerUpSubtitle = styled.p`
+  font-size: 1rem;
+  color: ${colors.textSecondary};
+  margin-bottom: 2rem;
+`;
+
+const TotemImageContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 2rem;
+`;
+
+const TotemImage = styled.img`
+  max-width: 200px;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 2px solid rgba(232, 168, 85, 0.3);
+  animation: ${glow} 3s ease-in-out infinite;
+`;
+
+const PowerUpButton = styled.button`
+  padding: 1rem 2.5rem;
+  background: linear-gradient(135deg, ${colors.sunlitGold} 0%, ${colors.sunsetOrange} 100%);
+  border: none;
+  border-radius: 8px;
+  color: ${colors.textPrimary};
+  font-weight: 600;
+  font-size: 1.1rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(232, 168, 85, 0.3);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+`;
+
+const SuccessMessage = styled.div`
+  background: rgba(74, 154, 122, 0.2);
+  border: 1px solid ${colors.jungleCyan};
+  border-radius: 12px;
+  padding: 1rem;
+  color: ${colors.jungleCyan};
+  margin-top: 1rem;
+`;
+
+const COMMUNITY_TOTEM_ID = 1; // Community totem ID
+
 export default function ExplorePage() {
   const { isSignedIn } = useIsSignedIn();
+  const { evmAddress } = useEvmAddress();
+  const { currentUser } = useCurrentUser();
+  const { signEvmTransaction } = useSignEvmTransaction();
   const { locations, isLoading, error } = useLocationRegistry();
+  const { magicBalance, refetch: refetchStats } = useUserStats();
+  
+  const [isPoweringUp, setIsPoweringUp] = useState(false);
+  const [powerUpError, setPowerUpError] = useState<string | null>(null);
+  const [powerUpSuccess, setPowerUpSuccess] = useState<string | null>(null);
 
   // Convert IPFS URL to HTTP gateway URL
   const convertIpfsUrl = (uri: string) => {
@@ -258,6 +357,168 @@ export default function ExplorePage() {
       return uri;
     }
     return null;
+  };
+
+  const sendTransaction = async (data: `0x${string}`, to: `0x${string}`) => {
+    const evmAccount = currentUser?.evmAccounts?.[0];
+    if (evmAccount) {
+      // Extract address - evmAccount might be an object with .address or just the address string
+      const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+      if (!accountAddress) {
+        throw new Error("No EOA account address available. Please ensure you're properly connected.");
+      }
+      
+      const publicClient = createPublicClient({
+        chain: SAGA_CHAINLET as any,
+        transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+      });
+
+      const gasPrice = await publicClient.getGasPrice();
+      const nonce = await publicClient.getTransactionCount({
+        address: accountAddress,
+      });
+
+      let gasEstimate;
+      try {
+        gasEstimate = await publicClient.estimateGas({
+          account: accountAddress,
+          to,
+          data,
+          value: 0n,
+        });
+      } catch (error: any) {
+        // Gas estimation failure usually means the transaction would revert
+        const errorMessage = error?.message || error?.toString() || "Unknown error";
+        if (errorMessage.includes("execution reverted") || errorMessage.includes("revert")) {
+          throw new Error("Transaction would fail. This may be because the totem doesn't exist, you don't have enough allowance, or the contract state is invalid.");
+        }
+        throw new Error(`Gas estimation failed: ${errorMessage}`);
+      }
+
+      const { signedTransaction } = await signEvmTransaction({
+        evmAccount,
+        transaction: {
+          to,
+          data,
+          value: 0n,
+          nonce,
+          gas: gasEstimate,
+          maxFeePerGas: gasPrice,
+          maxPriorityFeePerGas: gasPrice / 2n,
+          chainId: SAGA_CHAINLET.id,
+          type: "eip1559",
+        },
+      });
+
+      return await publicClient.sendRawTransaction({
+        serializedTransaction: signedTransaction,
+      });
+    } else if (typeof window !== "undefined" && (window as any).ethereum) {
+      const ethereum = (window as any).ethereum;
+      const publicClient = createPublicClient({
+        chain: SAGA_CHAINLET as any,
+        transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+      });
+
+      const walletClient = createWalletClient({
+        chain: SAGA_CHAINLET as any,
+        transport: custom(ethereum),
+      });
+
+      const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+      const accountAddress = accounts[0] as `0x${string}`;
+
+      const gasPrice = await publicClient.getGasPrice();
+      const gasEstimate = await publicClient.estimateGas({
+        account: accountAddress,
+        to,
+        data,
+        value: 0n,
+      });
+
+      return await walletClient.sendTransaction({
+        account: accountAddress,
+        chain: SAGA_CHAINLET as any,
+        to,
+        data,
+        value: 0n,
+        gas: gasEstimate,
+        maxFeePerGas: gasPrice,
+        maxPriorityFeePerGas: gasPrice / 2n,
+      });
+    } else {
+      throw new Error("No wallet available");
+    }
+  };
+
+  const handlePowerUp = async () => {
+    const amount = parseEther("1"); // Always use 1 Magic
+
+    if (magicBalance && parseFloat(magicBalance) < 1) {
+      setPowerUpError("Insufficient Magic balance. You need at least 1 MAGIC.");
+      return;
+    }
+
+    setIsPoweringUp(true);
+    setPowerUpError(null);
+    setPowerUpSuccess(null);
+
+    try {
+      const publicClient = createPublicClient({
+        chain: SAGA_CHAINLET as any,
+        transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+      });
+
+      // Check if totem exists
+      if (!evmAddress) throw new Error("No address");
+      
+      const nextTotemId = await publicClient.readContract({
+        address: CONTRACT_ADDRESSES.TOTEM_MANAGER as `0x${string}`,
+        abi: TOTEM_MANAGER_ABI,
+        functionName: "nextTotemId",
+      });
+
+      if (BigInt(COMMUNITY_TOTEM_ID) >= nextTotemId) {
+        setPowerUpError("Community totem does not exist yet. The totem must be created first.");
+        setIsPoweringUp(false);
+        return;
+      }
+
+      // Check allowance
+      const allowance = await publicClient.readContract({
+        address: CONTRACT_ADDRESSES.MAGIC_TOKEN as `0x${string}`,
+        abi: ERC20_ABI,
+        functionName: "allowance",
+        args: [evmAddress as `0x${string}`, CONTRACT_ADDRESSES.TOTEM_MANAGER as `0x${string}`],
+      });
+
+      // Approve if needed
+      if (allowance < amount) {
+        const approveData = encodeFunctionData({
+          abi: ERC20_ABI,
+          functionName: "approve",
+          args: [CONTRACT_ADDRESSES.TOTEM_MANAGER as `0x${string}`, amount],
+        });
+
+        await sendTransaction(approveData, CONTRACT_ADDRESSES.MAGIC_TOKEN as `0x${string}`);
+      }
+
+      // Power up
+      const powerUpData = encodeFunctionData({
+        abi: TOTEM_MANAGER_ABI,
+        functionName: "powerUp",
+        args: [BigInt(COMMUNITY_TOTEM_ID), amount],
+      });
+
+      const hash = await sendTransaction(powerUpData, CONTRACT_ADDRESSES.TOTEM_MANAGER as `0x${string}`);
+      setPowerUpSuccess(`Community totem powered up! Transaction: ${hash}`);
+      refetchStats();
+    } catch (error) {
+      console.error("Error powering up totem:", error);
+      setPowerUpError(error instanceof Error ? error.message : "Failed to power up totem");
+    } finally {
+      setIsPoweringUp(false);
+    }
   };
 
   // Sort locations in specific order: 5, 2, 4, 7, 6, 3, 1
@@ -376,6 +637,34 @@ export default function ExplorePage() {
               </LocationsGrid>
             )}
           </Card>
+
+          {isSignedIn && (
+            <PowerUpCard>
+              <PowerUpTitle>POWER UP TOTEM</PowerUpTitle>
+              <PowerUpSubtitle>Use your Magic to power up the Community Totem</PowerUpSubtitle>
+              
+              <TotemImageContainer>
+                <TotemImage 
+                  src="/images/mystic-island-origin.jpg" 
+                  alt="Community Totem"
+                />
+              </TotemImageContainer>
+              
+              <PowerUpButton
+                onClick={handlePowerUp}
+                disabled={isPoweringUp || (magicBalance !== null && parseFloat(magicBalance) < 1)}
+              >
+                {isPoweringUp ? (
+                  <>⏳ Powering Up...</>
+                ) : (
+                  <>✨ Power Up with 1 MAGIC</>
+                )}
+              </PowerUpButton>
+
+              {powerUpError && <ErrorMessage>{powerUpError}</ErrorMessage>}
+              {powerUpSuccess && <SuccessMessage>{powerUpSuccess}</SuccessMessage>}
+            </PowerUpCard>
+          )}
         </Container>
       </PageContainer>
     </>

@@ -193,6 +193,13 @@ export const TOTEM_MANAGER_ABI = [
     type: "function",
   },
   {
+    inputs: [],
+    name: "owner",
+    outputs: [{ name: "", type: "address" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [{ name: "totemId", type: "uint256" }],
     name: "getTotem",
     outputs: [
@@ -241,6 +248,16 @@ export const TOTEM_MANAGER_ABI = [
       { name: "magicAmount", type: "uint256" },
     ],
     name: "powerUp",
+    outputs: [],
+    stateMutability: "nonpayable",
+    type: "function",
+  },
+  {
+    inputs: [
+      { name: "totemId", type: "uint256" },
+      { name: "newPower", type: "uint256" },
+    ],
+    name: "adminSetPower",
     outputs: [],
     stateMutability: "nonpayable",
     type: "function",
