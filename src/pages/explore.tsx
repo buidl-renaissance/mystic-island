@@ -132,13 +132,16 @@ const LocationsGrid = styled.div`
   margin-bottom: 2rem;
 `;
 
-const LocationCard = styled.div`
+const LocationCard = styled(Link)`
   background: rgba(10, 20, 16, 0.5);
   border: 1px solid rgba(232, 168, 85, 0.2);
   border-radius: 12px;
   padding: 1.5rem;
   transition: all 0.3s ease;
   cursor: pointer;
+  text-decoration: none;
+  display: block;
+  color: inherit;
 
   &:hover {
     transform: translateY(-4px);
@@ -316,7 +319,7 @@ export default function ExplorePage() {
             ) : (
               <LocationsGrid>
                 {locations.map((location) => (
-                  <LocationCard key={location.id}>
+                  <LocationCard key={location.id} href={`/location/${location.id}`}>
                     <LocationName>{location.displayName}</LocationName>
                     <LocationDescription>{location.description}</LocationDescription>
                     <LocationMeta>
