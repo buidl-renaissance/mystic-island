@@ -154,8 +154,19 @@ const ErrorMessage = styled.div`
 export default function CreateLocationPage() {
   const { isSignedIn } = useIsSignedIn();
   const { evmAddress } = useEvmAddress();
-  const { mythos, isLoading: mythosLoading } = useIslandMythos();
+  const { mythos, isLoading: mythosLoading, refetch: refetchMythos } = useIslandMythos();
   const router = useRouter();
+
+  // Refetch when page becomes visible
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refetchMythos();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [refetchMythos]);
 
   const [selectedLocation, setSelectedLocation] = useState<string | null>(null);
 
@@ -254,6 +265,23 @@ export default function CreateLocationPage() {
                 >
                   Go to onboarding
                 </Link>
+                <br />
+                <br />
+                <button
+                  onClick={() => refetchMythos()}
+                  style={{
+                    padding: "0.5rem 1rem",
+                    background: colors.skyDawn,
+                    border: "none",
+                    borderRadius: "8px",
+                    color: colors.textPrimary,
+                    cursor: "pointer",
+                    marginTop: "0.5rem",
+                  }}
+                >
+                  Refresh Mythos Status
+                </button>
+                {mythosLoading && <span style={{ marginLeft: "1rem", color: colors.textSecondary }}>Refreshing...</span>}
               </ErrorMessage>
             </Card>
           </Container>

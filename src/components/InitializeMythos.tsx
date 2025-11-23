@@ -1,10 +1,12 @@
 import { useState } from "react";
 import styled from "styled-components";
-import { useSendUserOperation, useCurrentUser } from "@coinbase/cdp-hooks";
-import { encodeFunctionData } from "viem";
+import { useCurrentUser, useSendUserOperation } from "@coinbase/cdp-hooks";
+import { signEvmTransaction } from "@coinbase/cdp-core";
+import { createPublicClient, createWalletClient, http, custom, encodeFunctionData } from "viem";
 import { CONTRACT_ADDRESSES, SAGA_CHAINLET, ISLAND_MYTHOS_ABI } from "@/utils/contracts";
 import { MYSTIC_ISLAND_MYTHOS } from "@/data/realm-content";
 import ImageUpload from "@/components/ImageUpload";
+import { useIslandMythos } from "@/hooks/useIslandMythos";
 
 // Color Palette
 const colors = {
@@ -122,7 +124,9 @@ interface InitializeMythosProps {
 export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
   const { currentUser } = useCurrentUser();
   const { sendUserOperation } = useSendUserOperation();
+  const { refetch: refetchMythos } = useIslandMythos();
   const smartAccount = currentUser?.evmSmartAccounts?.[0];
+  const evmAccount = currentUser?.evmAccounts?.[0];
 
   const [formData, setFormData] = useState({
     islandName: MYSTIC_ISLAND_MYTHOS.islandName,
@@ -141,11 +145,6 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!smartAccount) {
-      setError("Smart account not available. Please ensure you're properly connected.");
-      return;
-    }
-
     if (CONTRACT_ADDRESSES.ISLAND_MYTHOS === "0x0000000000000000000000000000000000000000") {
       setError("IslandMythos contract not deployed yet. Please deploy contracts first.");
       return;
@@ -156,7 +155,7 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
     setSuccess(false);
 
     try {
-      // Encode the initializeMythos function call
+      // Encode the function call
       const data = encodeFunctionData({
         abi: ISLAND_MYTHOS_ABI,
         functionName: "initializeMythos",
@@ -169,34 +168,188 @@ export default function InitializeMythos({ onSuccess }: InitializeMythosProps) {
         ],
       });
 
-      // Use sendUserOperation to execute with embedded wallet
-      const result = await sendUserOperation({
-        evmSmartAccount: smartAccount,
-        network: "base-sepolia", // TODO: Update when Saga chainlet is supported
-        calls: [
-          {
+      let hash: string;
+
+      // Check for MetaMask FIRST and prioritize it
+      const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : null;
+      // Check if MetaMask is available (isMetaMask is a MetaMask-specific property)
+      const useMetaMask = ethereum && (ethereum.isMetaMask || (!ethereum.isCoinbaseWallet && ethereum.selectedAddress));
+      
+      if (useMetaMask) {
+        // Use MetaMask for signing
+        const publicClient = createPublicClient({
+          chain: SAGA_CHAINLET as any,
+          transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+        });
+
+        const walletClient = createWalletClient({
+          chain: SAGA_CHAINLET as any,
+          transport: custom(ethereum),
+        });
+
+        // Request account access
+        const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+        const accountAddress = accounts[0] as `0x${string}`;
+
+        // Get gas estimates (MetaMask handles nonce automatically)
+        const gasPrice = await publicClient.getGasPrice();
+
+        const gasEstimate = await publicClient.estimateGas({
+          account: accountAddress,
+          to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
+          data: data as `0x${string}`,
+          value: 0n,
+        });
+
+        // Send transaction via MetaMask
+        hash = await walletClient.sendTransaction({
+          account: accountAddress,
+          chain: SAGA_CHAINLET as any,
+          to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
+          data: data as `0x${string}`,
+          value: 0n,
+          gas: gasEstimate,
+          maxFeePerGas: gasPrice,
+          maxPriorityFeePerGas: gasPrice / 2n,
+        });
+        console.log("Mythos initialization via MetaMask:", hash);
+      } else if (smartAccount) {
+        // Try using sendUserOperation with the chain ID as a string
+        // This will work if CDP has bundler infrastructure for Saga chainlet
+        try {
+          const result = await sendUserOperation({
+            evmSmartAccount: smartAccount,
+            network: SAGA_CHAINLET.id.toString() as any, // Try chain ID as string
+            calls: [
+              {
+                to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
+                data: data as `0x${string}`,
+                value: 0n,
+              },
+            ],
+          });
+          hash = result.userOperationHash || "";
+          console.log("Mythos initialization via sendUserOperation:", result);
+        } catch (userOpError) {
+          console.log("sendUserOperation failed, trying signEvmTransaction:", userOpError);
+          
+          // Fallback: Sign transaction and broadcast manually
+          if (!evmAccount) {
+            throw new Error("No EOA account available. Smart account user operations are not supported on Saga chainlet yet.");
+          }
+
+          // Extract address - evmAccount might be an object with .address or just the address string
+          const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+          if (!accountAddress) {
+            throw new Error("No EOA account address available. Please ensure you're properly connected.");
+          }
+
+          // Create public client for Saga chainlet
+          const publicClient = createPublicClient({
+            chain: SAGA_CHAINLET as any,
+            transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+          });
+
+          // Get the current nonce and gas estimates from Saga chainlet
+          const [nonce, gasPrice] = await Promise.all([
+            publicClient.getTransactionCount({ address: accountAddress }),
+            publicClient.getGasPrice(),
+          ]);
+
+          // Estimate gas for the transaction
+          const gasEstimate = await publicClient.estimateGas({
+            account: accountAddress,
             to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
             data: data as `0x${string}`,
             value: 0n,
-          },
-        ],
-      });
+          });
 
-      console.log("Mythos initialization transaction sent:", result);
-      setTransactionHash(result.userOperationHash || undefined);
+          // Sign the transaction with the embedded wallet
+          const { signedTransaction } = await signEvmTransaction({
+            evmAccount,
+            transaction: {
+              to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
+              data: data as `0x${string}`,
+              value: 0n,
+              nonce,
+              gas: gasEstimate,
+              maxFeePerGas: gasPrice,
+              maxPriorityFeePerGas: gasPrice / 2n,
+              chainId: SAGA_CHAINLET.id,
+              type: "eip1559",
+            },
+          });
+
+          // Broadcast the signed transaction to Saga chainlet
+          hash = await publicClient.sendRawTransaction({
+            serializedTransaction: signedTransaction,
+          });
+          console.log("Mythos initialization via embedded wallet:", hash);
+        }
+      } else if (evmAccount) {
+        // Fall back to embedded wallet signing if no MetaMask or smart account
+        // Extract address - evmAccount might be an object with .address or just the address string
+        const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+        if (!accountAddress) {
+          throw new Error("No EOA account address available. Please connect MetaMask or ensure you're properly connected.");
+        }
+        
+        const publicClient = createPublicClient({
+          chain: SAGA_CHAINLET as any,
+          transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+        });
+
+        const [nonce, gasPrice] = await Promise.all([
+          publicClient.getTransactionCount({ address: accountAddress }),
+          publicClient.getGasPrice(),
+        ]);
+
+        const gasEstimate = await publicClient.estimateGas({
+          account: accountAddress,
+          to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
+          data: data as `0x${string}`,
+          value: 0n,
+        });
+
+        const { signedTransaction } = await signEvmTransaction({
+          evmAccount,
+          transaction: {
+            to: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
+            data: data as `0x${string}`,
+            value: 0n,
+            nonce,
+            gas: gasEstimate,
+            maxFeePerGas: gasPrice,
+            maxPriorityFeePerGas: gasPrice / 2n,
+            chainId: SAGA_CHAINLET.id,
+            type: "eip1559",
+          },
+        });
+
+        hash = await publicClient.sendRawTransaction({
+          serializedTransaction: signedTransaction,
+        });
+        console.log("Mythos initialization via embedded wallet:", hash);
+      } else {
+        throw new Error("No wallet available. Please install and connect MetaMask, or ensure you're properly connected.");
+      }
+
+      setTransactionHash(hash);
       setSuccess(true);
 
-      if (onSuccess) {
-        setTimeout(() => {
+      // Refetch mythos data after a short delay to allow transaction to be mined
+      setTimeout(async () => {
+        await refetchMythos();
+        if (onSuccess) {
           onSuccess();
-        }, 2000);
-      }
+        }
+      }, 3000);
     } catch (error) {
       console.error("Error initializing mythos:", error);
       setError(
         error instanceof Error
           ? error.message
-          : "Failed to initialize mythos. Make sure you have the required permissions."
+          : "Failed to initialize mythos. Make sure the contract exists and hasn't been initialized already."
       );
     } finally {
       setIsInitializing(false);

@@ -106,8 +106,19 @@ const BackLink = styled(Link)`
 export default function OnboardingPage() {
   const { isSignedIn } = useIsSignedIn();
   const { evmAddress } = useEvmAddress();
-  const { mythos, isLoading } = useIslandMythos();
+  const { mythos, isLoading, refetch } = useIslandMythos();
   const router = useRouter();
+
+  // Refetch when page becomes visible (in case user initialized in another tab)
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refetch();
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [refetch]);
 
   // Redirect if already initialized or if contract not deployed
   useEffect(() => {

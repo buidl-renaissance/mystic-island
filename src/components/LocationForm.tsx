@@ -1,8 +1,12 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import styled from "styled-components";
 import { useSendUserOperation, useCurrentUser } from "@coinbase/cdp-hooks";
-import { encodeFunctionData } from "viem";
-import { CONTRACT_ADDRESSES, SAGA_CHAINLET, LOCATION_REGISTRY_ABI } from "@/utils/contracts";
+import { signEvmTransaction } from "@coinbase/cdp-core";
+import { createPublicClient, createWalletClient, http, custom, encodeFunctionData } from "viem";
+import { CONTRACT_ADDRESSES, SAGA_CHAINLET, LOCATION_REGISTRY_ABI, ISLAND_MYTHOS_ABI } from "@/utils/contracts";
+import MediaUpload from "@/components/MediaUpload";
+import { getIpfsProtocolUrl } from "@/utils/ipfs";
+import { useIslandMythos } from "@/hooks/useIslandMythos";
 
 // Color Palette
 const colors = {
@@ -173,7 +177,9 @@ interface LocationFormProps {
 export default function LocationForm({ onSuccess, initialData }: LocationFormProps) {
   const { currentUser } = useCurrentUser();
   const { sendUserOperation } = useSendUserOperation();
+  const { mythos, isLoading: mythosLoading } = useIslandMythos();
   const smartAccount = currentUser?.evmSmartAccounts?.[0];
+  const evmAccount = currentUser?.evmAccounts?.[0];
 
   const [formData, setFormData] = useState({
     slug: initialData?.slug || "",
@@ -190,17 +196,28 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [transactionHash, setTransactionHash] = useState<string | null>(null);
+  
+  // Track uploaded media
+  const [uploadedImageHash, setUploadedImageHash] = useState<string | null>(null);
+  const [uploadedVideoHash, setUploadedVideoHash] = useState<string | null>(null);
+  const [isGeneratingMetadata, setIsGeneratingMetadata] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!smartAccount) {
-      setError("Smart account not available. Please ensure you're properly connected.");
+    if (CONTRACT_ADDRESSES.LOCATION_REGISTRY === "0x0000000000000000000000000000000000000000") {
+      setError("LocationRegistry contract not deployed yet. Please deploy contracts first.");
       return;
     }
 
-    if (CONTRACT_ADDRESSES.LOCATION_REGISTRY === "0x0000000000000000000000000000000000000000") {
-      setError("LocationRegistry contract not deployed yet. Please deploy contracts first.");
+    // Check if mythos is initialized
+    if (mythosLoading) {
+      setError("Loading mythos data... Please wait.");
+      return;
+    }
+
+    if (!mythos || !mythos.initialized) {
+      setError("The realm's mythos must be initialized before creating locations. Please initialize the mythos first.");
       return;
     }
 
@@ -226,21 +243,239 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
         ],
       });
 
-      // Use sendUserOperation to execute with embedded wallet
-      const result = await sendUserOperation({
-        evmSmartAccount: smartAccount,
-        network: "base-sepolia", // TODO: Update when Saga chainlet is supported
-        calls: [
-          {
+      let hash: string;
+
+      // Check for MetaMask FIRST and prioritize it
+      const ethereum = typeof window !== 'undefined' ? (window as any).ethereum : null;
+      // Check if MetaMask is available (isMetaMask is a MetaMask-specific property)
+      const useMetaMask = ethereum && (ethereum.isMetaMask || (!ethereum.isCoinbaseWallet && ethereum.selectedAddress));
+      
+      if (useMetaMask) {
+          // Use MetaMask for signing
+          const publicClient = createPublicClient({
+            chain: SAGA_CHAINLET as any,
+            transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+          });
+
+          const walletClient = createWalletClient({
+            chain: SAGA_CHAINLET as any,
+            transport: custom(ethereum),
+          });
+
+          // Request account access
+          const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
+          const accountAddress = accounts[0] as `0x${string}`;
+
+          // Check specific conditions before attempting transaction
+          const checks = await Promise.allSettled([
+            // Check if mythos is initialized
+            publicClient.readContract({
+              address: CONTRACT_ADDRESSES.ISLAND_MYTHOS as `0x${string}`,
+              abi: ISLAND_MYTHOS_ABI,
+              functionName: "isInitialized",
+            }),
+            // Check if user has LOCATION_EDITOR_ROLE
+            (async () => {
+              const roleHash = await publicClient.readContract({
+                address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+                abi: LOCATION_REGISTRY_ABI,
+                functionName: "LOCATION_EDITOR_ROLE",
+              });
+              return publicClient.readContract({
+                address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+                abi: LOCATION_REGISTRY_ABI,
+                functionName: "hasRole",
+                args: [roleHash, accountAddress],
+              });
+            })(),
+            // Check if slug already exists
+            publicClient.readContract({
+              address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+              abi: LOCATION_REGISTRY_ABI,
+              functionName: "getLocationBySlug",
+              args: [formData.slug],
+            }).then((location) => location.id !== 0n).catch(() => false),
+            // Check if parent location exists (if parentLocationId !== 0)
+            formData.parentLocationId !== 0
+              ? publicClient.readContract({
+                  address: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+                  abi: LOCATION_REGISTRY_ABI,
+                  functionName: "getLocation",
+                  args: [BigInt(formData.parentLocationId)],
+                }).then((location) => location.id !== 0n).catch(() => false)
+              : Promise.resolve(true),
+          ]);
+
+          const mythosInitialized = checks[0].status === 'fulfilled' && checks[0].value === true;
+          const hasPermission = checks[1].status === 'fulfilled' && checks[1].value === true;
+          const slugExists = checks[2].status === 'fulfilled' && checks[2].value === true;
+          const parentExists = checks[3].status === 'fulfilled' && checks[3].value === true;
+
+          // Provide specific error message based on checks
+          if (!mythosInitialized) {
+            throw new Error("The realm's mythos must be initialized before creating locations. Please initialize the mythos first.");
+          }
+          if (!hasPermission) {
+            throw new Error(`You don't have permission to create locations. Your address (${accountAddress}) needs the LOCATION_EDITOR_ROLE. Please contact an admin to grant you this role.`);
+          }
+          if (slugExists) {
+            throw new Error(`The slug "${formData.slug}" already exists. Please use a different slug.`);
+          }
+          if (!parentExists && formData.parentLocationId !== 0) {
+            throw new Error(`The parent location (ID: ${formData.parentLocationId}) does not exist. Please use 0 for root locations or ensure the parent location exists first.`);
+          }
+
+          // Get gas estimates (MetaMask handles nonce automatically)
+          const gasPrice = await publicClient.getGasPrice();
+
+          // Try to estimate gas, catch errors for better error messages
+          let gasEstimate: bigint;
+          try {
+            gasEstimate = await publicClient.estimateGas({
+              account: accountAddress,
+              to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+              data: data as `0x${string}`,
+              value: 0n,
+            });
+          } catch (estimateError) {
+            // This shouldn't happen if our checks above passed, but handle it just in case
+            throw new Error(`Transaction would revert: ${estimateError instanceof Error ? estimateError.message : 'Unknown error'}`);
+          }
+
+          // Send transaction via MetaMask
+          hash = await walletClient.sendTransaction({
+            account: accountAddress,
+            chain: SAGA_CHAINLET as any,
             to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
             data: data as `0x${string}`,
             value: 0n,
-          },
-        ],
-      });
+            gas: gasEstimate,
+            maxFeePerGas: gasPrice,
+            maxPriorityFeePerGas: gasPrice / 2n,
+          });
+          console.log("Location creation via MetaMask:", hash);
+      } else if (smartAccount) {
+        // Try using sendUserOperation with the chain ID as a string
+        // This will work if CDP has bundler infrastructure for Saga chainlet
+        try {
+          const result = await sendUserOperation({
+            evmSmartAccount: smartAccount,
+            network: SAGA_CHAINLET.id.toString() as any, // Try chain ID as string
+            calls: [
+              {
+                to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+                data: data as `0x${string}`,
+                value: 0n,
+              },
+            ],
+          });
+          hash = result.userOperationHash || "";
+          console.log("Location creation via sendUserOperation:", result);
+        } catch (userOpError) {
+          console.log("sendUserOperation failed, trying embedded wallet:", userOpError);
+          
+          // Fallback: Sign transaction and broadcast manually with embedded wallet
+          if (!evmAccount) {
+            throw new Error("No EOA account available. Please connect MetaMask or ensure you're properly connected.");
+          }
 
-      console.log("Location creation transaction sent:", result);
-      setTransactionHash(result.userOperationHash || undefined);
+          // Extract address - evmAccount might be an object with .address or just the address string
+          const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+          if (!accountAddress) {
+            throw new Error("No EOA account address available. Please connect MetaMask or ensure you're properly connected.");
+          }
+
+          // Create public client for Saga chainlet
+          const publicClient = createPublicClient({
+            chain: SAGA_CHAINLET as any,
+            transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+          });
+
+          // Get the current nonce and gas estimates from Saga chainlet
+          const [nonce, gasPrice] = await Promise.all([
+            publicClient.getTransactionCount({ address: accountAddress }),
+            publicClient.getGasPrice(),
+          ]);
+
+          // Estimate gas for the transaction
+          const gasEstimate = await publicClient.estimateGas({
+            account: accountAddress,
+            to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+            data: data as `0x${string}`,
+            value: 0n,
+          });
+
+          // Sign the transaction with the embedded wallet
+          const { signedTransaction } = await signEvmTransaction({
+            evmAccount,
+            transaction: {
+              to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+              data: data as `0x${string}`,
+              value: 0n,
+              nonce,
+              gas: gasEstimate,
+              maxFeePerGas: gasPrice,
+              maxPriorityFeePerGas: gasPrice / 2n,
+              chainId: SAGA_CHAINLET.id,
+              type: "eip1559",
+            },
+          });
+
+          // Broadcast the signed transaction to Saga chainlet
+          hash = await publicClient.sendRawTransaction({
+            serializedTransaction: signedTransaction,
+          });
+          console.log("Location creation via embedded wallet:", hash);
+        }
+      } else if (evmAccount) {
+        // Fall back to embedded wallet signing if no MetaMask or smart account
+        // Extract address - evmAccount might be an object with .address or just the address string
+        const accountAddress = (typeof evmAccount === 'string' ? evmAccount : (evmAccount as any).address) as `0x${string}`;
+        if (!accountAddress) {
+          throw new Error("No EOA account address available. Please connect MetaMask or ensure you're properly connected.");
+        }
+        
+        const publicClient = createPublicClient({
+          chain: SAGA_CHAINLET as any,
+          transport: http(SAGA_CHAINLET.rpcUrls.default.http[0]),
+        });
+
+        const [nonce, gasPrice] = await Promise.all([
+          publicClient.getTransactionCount({ address: accountAddress }),
+          publicClient.getGasPrice(),
+        ]);
+
+        const gasEstimate = await publicClient.estimateGas({
+          account: accountAddress,
+          to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+          data: data as `0x${string}`,
+          value: 0n,
+        });
+
+        const { signedTransaction } = await signEvmTransaction({
+          evmAccount,
+          transaction: {
+            to: CONTRACT_ADDRESSES.LOCATION_REGISTRY as `0x${string}`,
+            data: data as `0x${string}`,
+            value: 0n,
+            nonce,
+            gas: gasEstimate,
+            maxFeePerGas: gasPrice,
+            maxPriorityFeePerGas: gasPrice / 2n,
+            chainId: SAGA_CHAINLET.id,
+            type: "eip1559",
+          },
+        });
+
+        hash = await publicClient.sendRawTransaction({
+          serializedTransaction: signedTransaction,
+        });
+        console.log("Location creation via embedded wallet:", hash);
+      } else {
+        throw new Error("No wallet available. Please install and connect MetaMask, or ensure you're properly connected.");
+      }
+
+      setTransactionHash(hash);
       setSuccess(true);
 
       if (onSuccess) {
@@ -251,11 +486,32 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
       }
     } catch (error) {
       console.error("Error creating location:", error);
-      setError(
-        error instanceof Error
-          ? error.message
-          : "Failed to create location. Make sure you have the required permissions and the mythos is initialized."
-      );
+      
+      let errorMessage = "Failed to create location.";
+      
+      if (error instanceof Error) {
+        // Check for specific error messages
+        if (error.message.includes("execution reverted") || error.message.includes("EstimateGasExecutionError")) {
+          // Try to determine the specific reason
+          if (!mythos || !mythos.initialized) {
+            errorMessage = "The realm's mythos must be initialized before creating locations. Please initialize the mythos first.";
+          } else if (error.message.includes("mythos not initialized")) {
+            errorMessage = "The realm's mythos is not initialized. Please initialize the mythos first.";
+          } else if (error.message.includes("slug already exists")) {
+            errorMessage = "A location with this slug already exists. Please choose a different slug.";
+          } else if (error.message.includes("parent location does not exist")) {
+            errorMessage = "The specified parent location does not exist. Please use a valid parent location ID or 0 for root locations.";
+          } else if (error.message.includes("role") || error.message.includes("permission")) {
+            errorMessage = "You don't have permission to create locations. You need the LOCATION_EDITOR_ROLE.";
+          } else {
+            errorMessage = `Transaction failed: ${error.message}. Make sure the mythos is initialized and you have the required permissions.`;
+          }
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsCreating(false);
     }
@@ -272,6 +528,86 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
         : value,
     }));
   };
+
+  // Handle image upload - populate sceneURI
+  const handleImageUpload = (data: { ipfsHash: string; ipfsUrl: string; fileType: "image" | "video" }) => {
+    const ipfsUrl = getIpfsProtocolUrl(data.ipfsHash);
+    setUploadedImageHash(data.ipfsHash);
+    setFormData((prev) => ({
+      ...prev,
+      sceneURI: ipfsUrl,
+    }));
+    // Metadata will be generated by useEffect when state updates
+  };
+
+  // Handle video upload - include in metadata
+  const handleVideoUpload = (data: { ipfsHash: string; ipfsUrl: string; fileType: "image" | "video" }) => {
+    setUploadedVideoHash(data.ipfsHash);
+    // Metadata will be generated by useEffect when state updates
+  };
+
+  // Generate and upload metadata JSON via API
+  const generateMetadata = async (imageHash: string, videoHash?: string) => {
+    if (!imageHash || !formData.displayName || !formData.description) return;
+
+    setIsGeneratingMetadata(true);
+    try {
+      const biomeLabel = BIOME_TYPES.find((b) => b.value === formData.biome)?.label || "Unknown";
+      const difficultyLabel = DIFFICULTY_TIERS.find((d) => d.value === formData.difficulty)?.label || "None";
+
+      // Call API to generate metadata
+      const response = await fetch("/api/generate-location-metadata", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          imageIpfsHash: imageHash,
+          videoIpfsHash: videoHash,
+          locationName: formData.displayName,
+          locationDescription: formData.description,
+          biome: biomeLabel,
+          difficulty: difficultyLabel,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Failed to generate metadata");
+      }
+
+      if (!data.metadataIpfsHash || !data.metadataIpfsUrl) {
+        throw new Error("Invalid response from metadata API");
+      }
+
+      const metadataUrl = getIpfsProtocolUrl(data.metadataIpfsHash);
+
+      setFormData((prev) => ({
+        ...prev,
+        metadataURI: metadataUrl,
+      }));
+    } catch (error) {
+      console.error("Error generating metadata:", error);
+      setError("Failed to generate metadata. You can manually enter the metadata URI.");
+    } finally {
+      setIsGeneratingMetadata(false);
+    }
+  };
+
+  // Generate metadata when image, video, or form data changes
+  useEffect(() => {
+    if (
+      uploadedImageHash &&
+      formData.displayName &&
+      formData.description &&
+      formData.slug &&
+      !isGeneratingMetadata
+    ) {
+      generateMetadata(uploadedImageHash, uploadedVideoHash || undefined);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [uploadedImageHash, uploadedVideoHash, formData.displayName, formData.description, formData.slug, formData.biome, formData.difficulty]);
 
   return (
     <FormContainer>
@@ -368,7 +704,14 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
         </FormGroup>
 
         <FormGroup>
-          <Label htmlFor="sceneURI">Scene URI (IPFS or HTTPS)</Label>
+          <Label htmlFor="imageUpload">Location Image (Required)</Label>
+          <MediaUpload
+            accept="image/*"
+            onUploadComplete={handleImageUpload}
+            onError={(error) => setError(error)}
+            disabled={isCreating || success}
+            label="Upload location image"
+          />
           <Input
             id="sceneURI"
             name="sceneURI"
@@ -376,12 +719,29 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
             value={formData.sceneURI}
             onChange={handleChange}
             disabled={isCreating || success}
-            placeholder="ipfs://Qm..."
+            placeholder="ipfs://Qm... (auto-filled when image is uploaded)"
+            style={{ marginTop: "0.5rem" }}
+          />
+        </FormGroup>
+
+        <FormGroup>
+          <Label htmlFor="videoUpload">Location Video (Optional - Unlocked as user explores)</Label>
+          <MediaUpload
+            accept="video/*"
+            onUploadComplete={handleVideoUpload}
+            onError={(error) => setError(error)}
+            disabled={isCreating || success}
+            label="Upload location video"
           />
         </FormGroup>
 
         <FormGroup>
           <Label htmlFor="metadataURI">Metadata URI (IPFS or HTTPS, optional)</Label>
+          {isGeneratingMetadata && (
+            <div style={{ color: colors.textSecondary, fontSize: "0.9rem", marginBottom: "0.5rem" }}>
+              Generating metadata...
+            </div>
+          )}
           <Input
             id="metadataURI"
             name="metadataURI"
@@ -389,9 +749,21 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
             value={formData.metadataURI}
             onChange={handleChange}
             disabled={isCreating || success}
-            placeholder="ipfs://Qm..."
+            placeholder="ipfs://Qm... (auto-filled when metadata is generated)"
           />
         </FormGroup>
+
+        {mythosLoading && (
+          <div style={{ color: colors.textSecondary, fontSize: "0.9rem", marginBottom: "1rem" }}>
+            Checking mythos initialization status...
+          </div>
+        )}
+        
+        {!mythosLoading && mythos && !mythos.initialized && (
+          <ErrorMessage>
+            ⚠️ The realm's mythos must be initialized before creating locations. Please initialize the mythos first.
+          </ErrorMessage>
+        )}
 
         {error && <ErrorMessage>{error}</ErrorMessage>}
         {success && (
@@ -400,7 +772,7 @@ export default function LocationForm({ onSuccess, initialData }: LocationFormPro
           </SuccessMessage>
         )}
 
-        <Button type="submit" disabled={isCreating || success}>
+        <Button type="submit" disabled={isCreating || success || mythosLoading || (!mythos || !mythos.initialized)}>
           {isCreating ? "Creating..." : success ? "Created!" : "Create Location"}
         </Button>
       </form>

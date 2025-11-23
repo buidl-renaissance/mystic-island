@@ -410,9 +410,11 @@ export default function DashboardPage() {
           <Card>
             <SectionTitle>Quick Actions</SectionTitle>
             <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
-              <ActionButton href="/join-tribe">Join Tribe</ActionButton>
               <ActionButton href="/create-artifact">Create Artifact</ActionButton>
-              <ActionButton href="/contracts">View Contracts</ActionButton>
+              <ActionButton href="/join-tribe">Join Tribe</ActionButton>
+              <ActionButton href="/review-requests">Review Requests</ActionButton>
+              <ActionButton href="/create-location">Create Location</ActionButton>
+              <ActionButton href="/explore">Explore</ActionButton>
             </div>
           </Card>
         </Container>

@@ -22,8 +22,8 @@ function useWalletDeploymentStatus(address: string | null) {
     setError(null);
 
     try {
-      // Use Base Sepolia RPC to check if contract code exists
-      const rpcUrl = "https://sepolia.base.org";
+      // Use Saga Chainlet RPC to check if contract code exists
+      const rpcUrl = "https://mysticisland-2763823383026000-1.jsonrpc.sagarpc.io";
       const response = await fetch(rpcUrl, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -44,6 +44,7 @@ function useWalletDeploymentStatus(address: string | null) {
         address,
         deployed,
         codeLength: contractCode?.length || 0,
+        network: "Saga Chainlet",
       });
     } catch (err) {
       console.error("Error checking wallet deployment:", err);
@@ -99,11 +100,15 @@ export function useAutoDeployWallet() {
     try {
       console.log("Auto-deploying wallet by sending a small transaction to self...");
       
+      // Note: CDP embedded wallet only supports specific networks like base-sepolia
+      // The wallet will be deployed on base-sepolia, but we check deployment on Saga chainlet
+      // This means the wallet might exist on base-sepolia but not on Saga chainlet
+      // For Saga chainlet transactions, we use API endpoints that execute server-side
       const deployAmount = parseEther("0.00001");
       
       const result = await sendUserOperation({
         evmSmartAccount: smartAccount,
-        network: "base-sepolia",
+        network: "base-sepolia", // CDP doesn't support Saga chainlet yet
         calls: [{
           to: evmAddress,
           value: deployAmount,

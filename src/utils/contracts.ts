@@ -292,5 +292,47 @@ export const LOCATION_REGISTRY_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
+  {
+    inputs: [
+      { name: "role", type: "bytes32" },
+      { name: "account", type: "address" },
+    ],
+    name: "hasRole",
+    outputs: [{ name: "", type: "bool" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [],
+    name: "LOCATION_EDITOR_ROLE",
+    outputs: [{ name: "", type: "bytes32" }],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
+    inputs: [{ name: "slug", type: "string" }],
+    name: "getLocationBySlug",
+    outputs: [
+      {
+        components: [
+          { name: "id", type: "uint256" },
+          { name: "slug", type: "string" },
+          { name: "displayName", type: "string" },
+          { name: "description", type: "string" },
+          { name: "biome", type: "uint8" },
+          { name: "difficulty", type: "uint8" },
+          { name: "parentLocationId", type: "uint256" },
+          { name: "isActive", type: "bool" },
+          { name: "sceneURI", type: "string" },
+          { name: "controller", type: "address" },
+          { name: "metadataURI", type: "string" },
+        ],
+        name: "",
+        type: "tuple",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
 ] as const;
 

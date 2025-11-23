@@ -1,10 +1,12 @@
 import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
+import Link from "next/link";
 import { CDPReactProvider, type Config, type Theme } from "@coinbase/cdp-react";
 import { CDPHooksProvider } from "@coinbase/cdp-hooks";
-import Navigation from "@/components/Navigation";
 import { useAutoDeployWallet } from "@/hooks/useAutoDeployWallet";
+import styled from "styled-components";
+import AccountDropdown from "@/components/AccountDropdown";
 
 const config: Config = {
   projectId: "91f1f5ba-475e-4652-83a5-81f337f6d802",
@@ -41,15 +43,38 @@ const theme: Partial<Theme> = {
   "font-family-sans": "'Inter', 'Inter Fallback'",
 };
 
+const TopBar = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 64px;
+  background-color: #ffffff;
+  border-bottom: 1px solid #dcdfe4;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  z-index: 100;
+`;
+
+const Logo = styled(Link)`
+  font-size: 20px;
+  font-weight: 700;
+  color: #098551;
+  text-decoration: none;
+`;
+
 function AppContent({ Component, pageProps }: AppProps) {
   const router = useRouter();
-  const isHomePage = router.pathname === '/';
-  const isAboutPage = router.pathname === '/about';
   const isOnboardingPage = router.pathname === '/onboarding';
+  const isStartPage = router.pathname === '/start';
   const isDeployWalletPage = router.pathname === '/deploy-wallet';
   const isAuthPage = router.pathname === '/auth';
   const isExplorePage = router.pathname === '/explore';
-  const showNavigation = !isHomePage && !isAboutPage && !isOnboardingPage;
+  
+  // Hide top bar on onboarding and start pages
+  const showTopBar = !isOnboardingPage && !isStartPage;
 
   // Only run auto-deployment on pages where it makes sense
   // Skip on deploy-wallet, auth, and explore pages to avoid redirect loops
@@ -61,8 +86,15 @@ function AppContent({ Component, pageProps }: AppProps) {
 
   return (
     <>
-      {showNavigation && <Navigation />}
-      <Component {...pageProps} />
+      {showTopBar && (
+        <TopBar>
+          <Logo href="/">Mystic Island</Logo>
+          <AccountDropdown />
+        </TopBar>
+      )}
+      <div style={{ marginTop: showTopBar ? '64px' : '0' }}>
+        <Component {...pageProps} />
+      </div>
     </>
   );
 }
