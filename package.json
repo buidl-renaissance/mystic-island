@@ -20,7 +20,7 @@
     "@types/node-fetch": "2",
     "axios": "^1.13.2",
     "form-data": "^4.0.5",
-    "next": "16.0.3",
+    "next": "16.0.7",
     "node-fetch": "2",
     "openai": "^6.9.1",
     "react": "19.2.0",
@@ -37,7 +37,7 @@
     "@types/styled-components": "^5.1.36",
     "babel-plugin-react-compiler": "1.0.0",
     "eslint": "^9",
-    "eslint-config-next": "16.0.3",
+    "eslint-config-next": "16.0.7",
     "typescript": "^5"
   }
 }
