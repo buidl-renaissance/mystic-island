@@ -243,15 +243,22 @@ export default async function handler(
   }
   
   // CRITICAL: The paymentRequirements MUST match EXACTLY what was in the original 402 response
-  // The facilitator extracts payment requirements from the signature (which was based on the
-  // original 402 response) and compares them to paymentRequirements. Any mismatch causes rejection.
-  // We must use the EXACT same hardcoded values from the original 402 response, not client-provided values.
+  // However, the facilitator extracts payment requirements from the signature, which includes
+  // the authorization.to address. The payTo in paymentRequirements MUST match authorization.to
+  // because that's what the client actually signed for.
   const originalPayTo = process.env.PAYMENT_RECIPIENT_ADDRESS || "0x4200000000000000000000000000000000000006";
+  
+  // Use authorization.to for payTo if available, as that's what the client signed for
+  // The facilitator extracts requirements from the signature and compares them, so payTo must match authorization.to
+  const payToForRequirements = auth?.to || originalPayTo;
   
   console.log("=== PAYTO ADDRESS SELECTION ===");
   console.log("Authorization to (what client signed for):", auth?.to);
   console.log("Original payTo from env/default:", originalPayTo);
-  console.log("Using payTo for requirements (original 402 value):", originalPayTo);
+  console.log("Using payTo for requirements:", payToForRequirements);
+  if (auth?.to && auth.to.toLowerCase() !== originalPayTo.toLowerCase()) {
+    console.log("⚠️ NOTE: Using authorization.to instead of originalPayTo because facilitator extracts payTo from signature");
+  }
 
   // Log what the client sent in paymentHeaderData
   console.log("=== PAYMENT HEADER DATA FROM CLIENT ===");
@@ -273,26 +280,40 @@ export default async function handler(
   if (cachedRequirements) {
     // Use the exact requirements from the original 402 response
     paymentRequirements = { ...cachedRequirements.requirements };
-    console.log("✅ Using cached original 402 requirements");
-    console.log("Cached requirements:", JSON.stringify(paymentRequirements, null, 2));
+    
+    // CRITICAL: Override payTo with authorization.to if available
+    // The facilitator extracts payTo from the signature (which matches authorization.to),
+    // so paymentRequirements.payTo must match authorization.to, not the original 402 payTo
+    if (auth?.to) {
+      paymentRequirements.payTo = auth.to;
+      console.log("✅ Using cached original 402 requirements with payTo overridden to match authorization.to");
+    } else {
+      console.log("✅ Using cached original 402 requirements");
+    }
+    console.log("Cached requirements (with payTo override if applicable):", JSON.stringify(paymentRequirements, null, 2));
   } else {
     console.warn("⚠️ No cached requirements found, reconstructing from current values");
     console.warn("⚠️ This may cause a mismatch if values differ from the original 402 response");
-    // Fallback: reconstruct (should match original 402 exactly)
+    // Fallback: reconstruct (should match original 402 exactly, except payTo which must match authorization.to)
     paymentRequirements = {
       scheme: "exact", // Hardcoded to match original 402 response
       network: "base-sepolia", // Hardcoded to match original 402 response
       resource: resourceUrl, // Must match exactly what was in the 402 response
       description: `Purchase ${itemId}`, // Must match exactly what was in the 402 response
       mimeType: "application/json",
-      payTo: originalPayTo, // Use original payTo from 402 response
+      payTo: payToForRequirements, // Use authorization.to (what client signed for) instead of originalPayTo
       maxAmountRequired, // Must be a string matching the 402 response
       maxTimeoutSeconds: 300,
       asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
     };
   }
+  
+  // Ensure type consistency: maxAmountRequired must be string, maxTimeoutSeconds must be number
+  paymentRequirements.maxAmountRequired = String(paymentRequirements.maxAmountRequired);
+  paymentRequirements.maxTimeoutSeconds = Number(paymentRequirements.maxTimeoutSeconds);
 
   // Log comparison between original 402 and what we're sending
+  // Note: payTo may differ because we use authorization.to instead of originalPayTo
   console.log("=== ORIGINAL 402 vs PAYMENT REQUIREMENTS COMPARISON ===");
   const original402Accepts = {
     scheme: "exact",
@@ -305,6 +326,14 @@ export default async function handler(
     maxTimeoutSeconds: 300,
     asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
   };
+  
+  // Validate resource URL consistency
+  if (cachedRequirements && cachedRequirements.requirements.resource !== resourceUrl) {
+    console.warn("⚠️ WARNING: Resource URL mismatch between cached requirements and current request!");
+    console.warn("⚠️ Cached resource:", cachedRequirements.requirements.resource);
+    console.warn("⚠️ Current resource:", resourceUrl);
+    console.warn("⚠️ This may cause verification to fail if the client signed for a different resource URL");
+  }
   
   // Check if paymentRequirements has any fields that original402Accepts doesn't have
   // or vice versa - this could indicate missing/extra fields issue
@@ -514,25 +543,39 @@ export default async function handler(
   // Check if resource URL is localhost
   if (paymentRequirements.resource?.includes('localhost') || paymentRequirements.resource?.includes('127.0.0.1')) {
     console.warn("⚠️ WARNING: Resource URL is localhost!");
-    console.warn("⚠️ The facilitator might reject localhost URLs as invalid.");
-    console.warn("⚠️ Consider using a publicly accessible URL for testing, or use the community facilitator.");
+    console.warn("⚠️ The CDP facilitator will reject localhost URLs for security reasons.");
+    console.warn("⚠️ For testing, consider:");
+    console.warn("   - Deploying to a public domain (Vercel, Netlify, etc.)");
+    console.warn("   - Using a tunneling service (ngrok, Cloudflare Tunnel, etc.)");
+    console.warn("⚠️ The resource URL must be publicly accessible for the facilitator to verify.");
   }
   
   console.log("=== ADDITIONAL CONTEXT ===");
   console.log("Original 402 response payTo:", originalPayTo);
   console.log("Authorization to (what client signed for):", auth?.to);
-  console.log("Using payTo in requirements (original 402 value):", originalPayTo);
+  console.log("Using payTo in requirements:", paymentRequirements.payTo);
   console.log("Resource URL:", resourceUrl);
+  if (cachedRequirements) {
+    console.log("Cached resource URL:", cachedRequirements.requirements.resource);
+    if (cachedRequirements.requirements.resource !== resourceUrl) {
+      console.warn("⚠️ Resource URL mismatch detected!");
+    }
+  }
   console.log("MaxAmountRequired:", maxAmountRequired, "(type:", typeof maxAmountRequired, ")");
+  console.log("PaymentRequirements.maxAmountRequired:", paymentRequirements.maxAmountRequired, "(type:", typeof paymentRequirements.maxAmountRequired, ")");
+  console.log("PaymentRequirements.maxTimeoutSeconds:", paymentRequirements.maxTimeoutSeconds, "(type:", typeof paymentRequirements.maxTimeoutSeconds, ")");
   console.log("Authorization value:", auth?.value, "(type:", typeof auth?.value, ")");
   console.log("Item ID:", itemId);
   console.log("Description:", `Purchase ${itemId}`);
   
-  // Check if payTo matches authorization.to
-  if (originalPayTo.toLowerCase() !== auth?.to?.toLowerCase()) {
+  // Check if payTo matches authorization.to (should match now after our fix)
+  if (paymentRequirements.payTo.toLowerCase() !== auth?.to?.toLowerCase()) {
     console.warn("⚠️ WARNING: payTo in requirements doesn't match authorization.to!");
     console.warn("⚠️ This will cause signature verification to fail.");
-    console.warn("⚠️ Consider using authorization.to for payTo in requirements.");
+    console.warn("⚠️ payTo in requirements:", paymentRequirements.payTo);
+    console.warn("⚠️ authorization.to:", auth?.to);
+  } else {
+    console.log("✅ payTo matches authorization.to");
   }
   
   // Check if scheme/network match expected values
@@ -701,11 +744,28 @@ export default async function handler(
       // Check if resource URL is localhost
       if (paymentRequirements.resource?.includes('localhost') || paymentRequirements.resource?.includes('127.0.0.1')) {
         console.error("🚨 CRITICAL: Resource URL is localhost!");
-        console.error("🚨 The CDP facilitator likely rejects localhost URLs for security reasons.");
-        console.error("🚨 Even though all fields match exactly, the facilitator may reject localhost.");
-        console.error("🚨 SOLUTION: Deploy to a public domain (e.g., Vercel, Netlify) and test again.");
-        console.error("🚨 The resource URL must be publicly accessible: https://yourdomain.com/api/purchase-item");
+        console.error("🚨 The CDP facilitator rejects localhost URLs for security reasons.");
+        console.error("🚨 Even though all fields match exactly, the facilitator will reject localhost.");
         console.error("");
+        console.error("📋 ACTIONABLE SOLUTIONS:");
+        console.error("   1. Deploy to a public domain (Vercel, Netlify, Railway, etc.)");
+        console.error("   2. Use a tunneling service (ngrok, Cloudflare Tunnel, etc.) for testing");
+        console.error("   3. Use the community facilitator at https://x402.org/facilitator (if supported)");
+        console.error("");
+        console.error("🔗 The resource URL must be publicly accessible:");
+        console.error("   Current: " + paymentRequirements.resource);
+        console.error("   Required: https://yourdomain.com/api/purchase-item");
+        console.error("");
+        
+        // Return a more helpful error to the client
+        return res.status(402).json({
+          x402Version: "1.0",
+          error: "Payment verification failed: The CDP facilitator does not accept localhost URLs. Please deploy your application to a public domain (e.g., Vercel, Netlify) or use a tunneling service for testing.",
+          errorCode: "LOCALHOST_URL_REJECTED",
+          errorReason: verifyData.invalidReason,
+          resourceUrl: paymentRequirements.resource,
+          accepts: [paymentRequirements],
+        });
       }
       
       // Some facilitators require a stripped-down paymentRequirements for verify calls
@@ -789,10 +849,22 @@ export default async function handler(
         console.error(JSON.stringify(paymentPayload, null, 2));
         
         // Return error if both full and stripped versions failed
+        // Provide detailed error information to help debug
+        const errorMessage = paymentRequirements.resource?.includes('localhost') || paymentRequirements.resource?.includes('127.0.0.1')
+          ? "Payment verification failed. The CDP facilitator rejects localhost URLs. Please deploy to a public domain."
+          : "Payment verification failed. The payment requirements don't match what the facilitator extracted from the signature. Check that all fields match exactly, especially payTo (must match authorization.to), resource URL, and field types.";
+        
         return res.status(402).json({
           x402Version: "1.0",
-          error: "Payment verification failed. Both full and stripped paymentRequirements were rejected.",
+          error: errorMessage,
           errorReason: verifyData.invalidReason,
+          debugInfo: {
+            payToInRequirements: paymentRequirements.payTo,
+            authorizationTo: auth?.to,
+            payToMatches: paymentRequirements.payTo.toLowerCase() === auth?.to?.toLowerCase(),
+            resourceUrl: paymentRequirements.resource,
+            isLocalhost: paymentRequirements.resource?.includes('localhost') || paymentRequirements.resource?.includes('127.0.0.1'),
+          },
           accepts: [paymentRequirements],
         });
       }
