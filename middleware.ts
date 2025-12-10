@@ -1,9 +1,16 @@
 import { paymentMiddleware } from 'x402-next';
+import { createFacilitatorConfig } from '@coinbase/x402';
 import type { NextRequest } from 'next/server';
-// import { facilitator } from "@coinbase/x402"; // For mainnet
 
 // Configure the payment middleware
 const payToAddress = (process.env.PAYMENT_RECIPIENT_ADDRESS || "0x4200000000000000000000000000000000000006") as `0x${string}`;
+
+// Create CDP facilitator config with API keys
+// This handles CDP authentication automatically
+const cdpFacilitator = createFacilitatorConfig(
+  process.env.CDP_API_KEY_ID,
+  process.env.CDP_API_KEY_SECRET
+);
 
 // Wrap the middleware to add logging
 const baseMiddleware = paymentMiddleware(
@@ -15,13 +22,11 @@ const baseMiddleware = paymentMiddleware(
       config: {
         description: 'Purchase game items',
         mimeType: "application/json",
+        maxTimeoutSeconds: 300,
       }
     },
   },
-  {
-    url: "https://x402.org/facilitator", // for testnet
-    // For mainnet, use: facilitator (from @coinbase/x402)
-  }
+  cdpFacilitator // Use CDP facilitator instead of x402.org
 );
 
 // Wrap with logging to debug
@@ -47,6 +52,7 @@ export const middleware = async (request: NextRequest) => {
 // Configure which paths the middleware should run on
 export const config = {
   matcher: [
+    '/api/purchase-item',
     '/api/purchase-item/:path*',
   ],
   runtime: "nodejs",
