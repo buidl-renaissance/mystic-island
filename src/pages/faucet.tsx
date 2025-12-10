@@ -1,6 +1,6 @@
 import Head from "next/head";
 import { useState } from "react";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthButton } from "@coinbase/cdp-react";
 import { useBalance } from "@/hooks/useBalance";
 import Link from "next/link";
@@ -21,8 +21,7 @@ const TOKEN_INFO: Record<TokenType, { name: string; amount: string; limit: strin
 };
 
 export default function FaucetPage() {
-  const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
+  const { isSignedIn, evmAddress } = useUnifiedAuth();
   const { usdcBalance, ethBalance, isLoading: isLoadingBalance } = useBalance();
   const [selectedToken, setSelectedToken] = useState<TokenType>("eth");
   const [selectedNetwork, setSelectedNetwork] = useState<NetworkType>("base-sepolia");

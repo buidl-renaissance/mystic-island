@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthButton } from "@coinbase/cdp-react";
 import { useBalance } from "@/hooks/useBalance";
 import { useDirectPayment } from "@/hooks/useDirectPayment";
@@ -21,8 +21,7 @@ export default function PurchaseItem({
   onPurchaseSuccess,
   onPurchaseError,
 }: PurchaseItemProps) {
-  const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
+  const { isSignedIn, evmAddress } = useUnifiedAuth();
   const { balance, isLoading: isLoadingBalance, refresh: refreshBalance } = useBalance();
   const { sendPayment } = useDirectPayment();
   const [isPurchasing, setIsPurchasing] = useState(false);

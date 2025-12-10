@@ -2,7 +2,8 @@ import Head from "next/head";
 import { useState } from "react";
 import styled, { keyframes } from "styled-components";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
-import { useIsSignedIn, useEvmAddress, useCurrentUser, useSignEvmTransaction } from "@coinbase/cdp-hooks";
+import { useCurrentUser, useSignEvmTransaction } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthButton } from "@coinbase/cdp-react";
 import { useLocationRegistry, type Location } from "@/hooks/useLocationRegistry";
 import { useUserStats } from "@/hooks/useUserStats";
@@ -335,8 +336,7 @@ const SuccessMessage = styled.div`
 const COMMUNITY_TOTEM_ID = 1; // Community totem ID
 
 export default function ExplorePage() {
-  const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
+  const { isSignedIn, evmAddress } = useUnifiedAuth();
   const { currentUser } = useCurrentUser();
   const { signEvmTransaction } = useSignEvmTransaction();
   const { locations, isLoading, error } = useLocationRegistry();

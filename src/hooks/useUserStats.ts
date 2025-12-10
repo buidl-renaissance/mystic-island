@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "./useUnifiedAuth";
 import { createPublicClient, http, formatEther } from "viem";
 import { CONTRACT_ADDRESSES, SAGA_CHAINLET, ERC721_ABI, ERC20_ABI } from "@/utils/contracts";
 
@@ -11,8 +11,7 @@ export interface UserStats {
 }
 
 export function useUserStats() {
-  const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
+  const { isSignedIn, evmAddress } = useUnifiedAuth();
   const [stats, setStats] = useState<UserStats>({
     artifactCount: null,
     magicBalance: null,

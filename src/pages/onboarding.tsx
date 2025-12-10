@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useState, useEffect } from "react";
 import styled from "styled-components";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthButton } from "@coinbase/cdp-react";
 import { useIslandMythos } from "@/hooks/useIslandMythos";
 import { useRouter } from "next/router";
@@ -104,8 +104,7 @@ const BackLink = styled(Link)`
 `;
 
 export default function OnboardingPage() {
-  const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
+  const { isSignedIn, evmAddress } = useUnifiedAuth();
   const { mythos, isLoading, refetch } = useIslandMythos();
   const router = useRouter();
 

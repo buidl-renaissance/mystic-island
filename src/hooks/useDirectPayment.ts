@@ -1,8 +1,10 @@
 import { useCallback } from "react";
 import { useCurrentUser, useEvmAddress, useSendUserOperation } from "@coinbase/cdp-hooks";
 import { signEvmTransaction as signEvmTransactionCore } from "@coinbase/cdp-core";
-import { createPublicClient, http, encodeFunctionData, parseUnits, formatUnits } from "viem";
+import { createPublicClient, http, encodeFunctionData, parseUnits, formatUnits, createWalletClient, custom } from "viem";
 import { baseSepolia } from "viem/chains";
+import { useUnifiedAuth } from "./useUnifiedAuth";
+import { useFarcasterContext } from "./useFarcasterContext";
 
 /**
  * USDC contract address on Base Sepolia
@@ -40,6 +42,12 @@ export function useDirectPayment() {
   const { currentUser } = useCurrentUser();
   const { evmAddress } = useEvmAddress();
   const { sendUserOperation } = useSendUserOperation();
+  const { authType, evmAddress: unifiedEvmAddress } = useUnifiedAuth();
+  const { sdk } = useFarcasterContext();
+  
+  // Use unified address if available
+  const walletAddress = unifiedEvmAddress || evmAddress;
+  const isFarcaster = authType === 'farcaster';
 
   const sendPayment = useCallback(
     async (
@@ -47,17 +55,78 @@ export function useDirectPayment() {
       amount: string, // Amount in USDC (e.g., "0.01")
       onProgress?: (status: string) => void
     ): Promise<`0x${string}`> => {
-      if (!currentUser?.evmAccounts?.[0]) {
-        throw new Error("No embedded wallet available. Please sign in.");
-      }
-
-      if (!evmAddress) {
+      if (!walletAddress) {
         throw new Error("No wallet address available. Please ensure you're signed in.");
       }
 
-      // Use evmAddress from useEvmAddress() to match what useBalance() uses
-      // This ensures we're checking balance and sending from the same address
-      const accountAddress = evmAddress as `0x${string}`;
+      // Use unified wallet address
+      const accountAddress = walletAddress as `0x${string}`;
+      
+      // For Farcaster, use EIP-1193 provider
+      if (isFarcaster && sdk) {
+        onProgress?.("Preparing transaction...");
+        
+        const publicClient = createPublicClient({
+          chain: baseSepolia,
+          transport: http(),
+        });
+
+        const amountInUnits = parseUnits(amount, 6);
+
+        // Check balance
+        onProgress?.("Checking balance...");
+        const balance = await publicClient.readContract({
+          address: USDC_CONTRACT_ADDRESS,
+          abi: ERC20_TRANSFER_ABI,
+          functionName: "balanceOf",
+          args: [accountAddress],
+        });
+
+        if (balance < amountInUnits) {
+          const balanceFormatted = formatUnits(balance, 6);
+          throw new Error(`Insufficient USDC balance. You have ${balanceFormatted} USDC but need ${amount} USDC.`);
+        }
+
+        // Encode transfer
+        const transferData = encodeFunctionData({
+          abi: ERC20_TRANSFER_ABI,
+          functionName: "transfer",
+          args: [to, amountInUnits],
+        });
+
+        // Get Farcaster wallet provider
+        const provider = await sdk.wallet.getEthereumProvider();
+        
+        // Create wallet client with Farcaster provider
+        const walletClient = createWalletClient({
+          account: accountAddress as `0x${string}`,
+          chain: baseSepolia,
+          transport: custom(provider),
+        });
+
+        onProgress?.("Sending transaction...");
+        
+        // Send transaction via Farcaster wallet
+        const hash = await walletClient.sendTransaction({
+          to: USDC_CONTRACT_ADDRESS,
+          data: transferData,
+          value: 0n,
+        });
+
+        onProgress?.("Transaction sent! Waiting for confirmation...");
+        
+        // Wait for confirmation
+        await publicClient.waitForTransactionReceipt({ hash });
+        
+        onProgress?.("Transaction confirmed!");
+        
+        return hash;
+      }
+
+      // CDP wallet logic (existing code)
+      if (!currentUser?.evmAccounts?.[0]) {
+        throw new Error("No embedded wallet available. Please sign in.");
+      }
       
       // Find the evmAccount that matches the evmAddress
       // evmAccount might be a string (address) or an object with an address property
@@ -243,7 +312,7 @@ export function useDirectPayment() {
         return hash;
       }
     },
-    [currentUser, evmAddress, sendUserOperation]
+    [currentUser, evmAddress, sendUserOperation, walletAddress, isFarcaster, sdk]
   );
 
   return { sendPayment };

@@ -2,6 +2,7 @@ import { useX402, useEvmAddress, useCurrentUser } from "@coinbase/cdp-hooks";
 import { useMemo, useCallback } from "react";
 import { createPublicClient, http, formatUnits } from "viem";
 import { baseSepolia } from "viem/chains";
+import { useUnifiedAuth } from "./useUnifiedAuth";
 
 /**
  * Custom hook that provides x402 payment-enabled fetch function
@@ -18,19 +19,34 @@ import { baseSepolia } from "viem/chains";
 export function useX402Payment() {
   const { evmAddress } = useEvmAddress();
   const { currentUser } = useCurrentUser();
+  const { authType, evmAddress: unifiedEvmAddress } = useUnifiedAuth();
+  
+  // Use unified address if available
+  const walletAddress = unifiedEvmAddress || evmAddress;
+  const isFarcaster = authType === 'farcaster';
+  
+  // For Farcaster, x402 might not work the same way - we may need to handle differently
+  // For now, use CDP x402 if not Farcaster, otherwise return a no-op or error
   const { fetchWithPayment: baseFetchWithPayment } = useX402({
     // Explicitly pass the embedded wallet address to ensure payments
     // are made from the correct wallet and balance is decremented
-    address: evmAddress || undefined,
+    address: (!isFarcaster ? walletAddress : undefined) || undefined,
   });
 
   // Wrap fetchWithPayment to check ETH balance for smart contract wallets
   const fetchWithPayment = useCallback(
     async (url: string, options?: RequestInit) => {
+      // For Farcaster, x402 payments may not be supported yet
+      // Return the request without x402 handling for now
+      if (isFarcaster) {
+        console.warn("x402 payments not yet fully supported for Farcaster wallets");
+        return fetch(url, options);
+      }
+      
       // Check if this is a smart contract wallet
       const isSmartWallet = currentUser?.evmSmartAccounts?.[0] !== undefined;
       
-      if (isSmartWallet && evmAddress) {
+      if (isSmartWallet && walletAddress) {
         // x402 payments use regular transactions (not UserOperations yet)
         // Smart contract wallets need ETH for gas
         try {
@@ -40,7 +56,7 @@ export function useX402Payment() {
           });
 
           const ethBalance = await publicClient.getBalance({
-            address: evmAddress as `0x${string}`,
+            address: walletAddress as `0x${string}`,
           });
 
           // Check if balance is sufficient for gas (roughly 0.0001 ETH should be enough)
@@ -69,7 +85,7 @@ export function useX402Payment() {
       // Proceed with x402 payment
       return baseFetchWithPayment(url, options);
     },
-    [baseFetchWithPayment, currentUser, evmAddress]
+    [baseFetchWithPayment, currentUser, walletAddress, isFarcaster]
   );
 
   // Return a memoized fetch function that handles payments automatically

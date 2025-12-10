@@ -1,11 +1,10 @@
 import Link from "next/link";
 import { useState, useRef, useEffect } from "react";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthButton } from "@coinbase/cdp-react";
 
 export default function AccountDropdown() {
-  const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
+  const { isSignedIn, evmAddress, authType } = useUnifiedAuth();
   const [copied, setCopied] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -47,7 +46,12 @@ export default function AccountDropdown() {
   }, [showDropdown]);
 
   if (!isSignedIn) {
-    return <AuthButton />;
+    // Show CDP AuthButton only for CDP auth (Farcaster auth is automatic)
+    if (authType === 'cdp') {
+      return <AuthButton />;
+    }
+    // For Farcaster, show nothing or a loading state
+    return null;
   }
 
   return (
@@ -304,9 +308,18 @@ export default function AccountDropdown() {
             </DropdownLink>
           </div>
 
-          <div style={{ padding: "12px", borderTop: "1px solid rgba(232, 168, 85, 0.2)" }}>
-            <AuthButton />
-          </div>
+          {/* Sign out section - only show for CDP auth */}
+          {authType === 'cdp' && (
+            <div style={{ padding: "12px", borderTop: "1px solid rgba(232, 168, 85, 0.2)" }}>
+              <AuthButton />
+            </div>
+          )}
+          {/* For Farcaster, show auth type indicator */}
+          {authType === 'farcaster' && (
+            <div style={{ padding: "12px", borderTop: "1px solid rgba(232, 168, 85, 0.2)", fontSize: "11px", color: "#D0D0D0", textAlign: "center" }}>
+              Authenticated via Farcaster
+            </div>
+          )}
         </div>
       )}
     </div>

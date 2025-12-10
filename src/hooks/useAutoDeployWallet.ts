@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { useIsSignedIn, useCurrentUser } from "@coinbase/cdp-hooks";
 import { useRouter } from "next/router";
 import { useBalance } from "./useBalance";
+import { useUnifiedAuth } from "./useUnifiedAuth";
 
 /**
  * Hook to check if a wallet is deployed on-chain
@@ -94,11 +95,19 @@ function useWalletDeploymentStatus(address: string | null) {
  * @param enabled - Whether to enable auto-deployment (default: true)
  */
 export function useAutoDeployWallet(enabled: boolean = true) {
+  const { isSignedIn: unifiedIsSignedIn, authType, evmAddress: unifiedEvmAddress } = useUnifiedAuth();
   const { isSignedIn } = useIsSignedIn();
   const { currentUser } = useCurrentUser();
   const router = useRouter();
   
-  const evmAccount = currentUser?.evmAccounts?.[0];
+  // Skip deployment for Farcaster users (their wallets are already deployed)
+  const isFarcasterUser = authType === 'farcaster';
+  
+  // Use unified auth address if available, otherwise fall back to CDP
+  const evmAccount = isFarcasterUser 
+    ? unifiedEvmAddress 
+    : (currentUser?.evmAccounts?.[0]);
+  
   // For Saga chainlet, we use the EOA directly (no deployment needed)
   // Check the EOA address instead of smart account address
   const eoaAddress = evmAccount 
@@ -125,6 +134,11 @@ export function useAutoDeployWallet(enabled: boolean = true) {
 
   // Auto-deploy logic
   useEffect(() => {
+    // Skip deployment for Farcaster users
+    if (isFarcasterUser) {
+      return;
+    }
+    
     if (!enabled || !isSignedIn || !eoaAddress) {
       setHasChecked(false);
       return;
@@ -158,7 +172,7 @@ export function useAutoDeployWallet(enabled: boolean = true) {
       // Don't redirect - user might be on a specific page
       return;
     }
-  }, [enabled, isSignedIn, eoaAddress, isDeployed, isChecking, isDeploying, hasChecked, justDeployed, deployWallet, router]);
+  }, [enabled, isSignedIn, eoaAddress, isDeployed, isChecking, isDeploying, hasChecked, justDeployed, deployWallet, router, isFarcasterUser]);
 
   // Poll for deployment status after deployment attempt
   useEffect(() => {

@@ -6,7 +6,7 @@ import { CDPReactProvider, type Config, type Theme } from "@coinbase/cdp-react";
 import { CDPHooksProvider } from "@coinbase/cdp-hooks";
 import { useAutoDeployWallet } from "@/hooks/useAutoDeployWallet";
 import { useUserStats } from "@/hooks/useUserStats";
-import { useIsSignedIn } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { useFarcasterSDK } from "@/hooks/useFarcasterSDK";
 import styled from "styled-components";
 import AccountDropdown from "@/components/AccountDropdown";
@@ -108,11 +108,13 @@ const StatEmoji = styled.span`
 
 function AppContent({ Component, pageProps }: { Component: AppProps['Component']; pageProps: AppProps['pageProps'] }) {
   const router = useRouter();
-  const { isSignedIn } = useIsSignedIn();
-  const { magicBalance, isLoading: statsLoading } = useUserStats();
   
   // Initialize Farcaster Mini App SDK
   useFarcasterSDK();
+  
+  // Use unified auth (prefers Farcaster, falls back to CDP)
+  const { isSignedIn, authType } = useUnifiedAuth();
+  const { magicBalance, isLoading: statsLoading } = useUserStats();
   const isOnboardingPage = router.pathname === '/onboarding';
   const isStartPage = router.pathname === '/start';
   const isDeployWalletPage = router.pathname === '/deploy-wallet';

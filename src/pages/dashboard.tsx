@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthButton } from "@coinbase/cdp-react";
 import { CONTRACT_ADDRESSES, SAGA_CHAINLET } from "@/utils/contracts";
 import { createPublicClient, http } from "viem";
@@ -224,8 +224,7 @@ interface DashboardData {
 }
 
 export default function DashboardPage() {
-  const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
+  const { isSignedIn, evmAddress } = useUnifiedAuth();
   const { totems, isLoading: isLoadingTotems } = useTotems();
   const { magicBalance, isLoading: isLoadingMagic } = useUserStats();
   const [data, setData] = useState<DashboardData>({

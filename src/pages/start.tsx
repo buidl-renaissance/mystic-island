@@ -2,7 +2,7 @@ import Head from "next/head";
 import { useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { Cinzel, Inter } from "next/font/google";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthButton } from "@coinbase/cdp-react";
 import { useRouter } from "next/router";
 import { CONTRACT_ADDRESSES } from "@/utils/contracts";
@@ -95,8 +95,7 @@ const LoadingText = styled.p`
 `;
 
 export default function StartPage() {
-  const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
+  const { isSignedIn, evmAddress } = useUnifiedAuth();
   const router = useRouter();
 
   // Check if mythos contract is deployed

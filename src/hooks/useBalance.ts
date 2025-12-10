@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "./useUnifiedAuth";
 import { createPublicClient, http, formatUnits, formatEther } from "viem";
 import { baseSepolia } from "viem/chains";
 
@@ -22,8 +22,7 @@ const ERC20_ABI = [
 ] as const;
 
 export function useBalance() {
-  const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
+  const { isSignedIn, evmAddress } = useUnifiedAuth();
   const [usdcBalance, setUsdcBalance] = useState<string | null>(null);
   const [ethBalance, setEthBalance] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
