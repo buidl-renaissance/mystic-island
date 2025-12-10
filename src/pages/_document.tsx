@@ -5,7 +5,15 @@ import type { DocumentContext, DocumentInitialProps } from "next/document";
 export default function Document() {
   return (
     <Html lang="en">
-      <Head />
+      <Head>
+        {/* Farcaster Mini App Meta Tags */}
+        <meta name="farcaster:app" content="Mystic Island" />
+        <meta property="og:title" content="Mystic Island – Build Your World. Grow Your Community." />
+        <meta property="og:description" content="Mystic Island is a collaborative creation engine where communities form their own realms, build powerful Totems together, and connect with other Islands through quests, relics, and cross-realm alliances." />
+        <meta property="og:image" content="/images/luma.png" />
+        <meta property="og:type" content="website" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+      </Head>
       <body>
         <Main />
         <NextScript />

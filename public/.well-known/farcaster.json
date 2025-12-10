@@ -1,0 +1,16 @@
+{
+  "accountAssociation": {
+    "header": "",
+    "payload": "",
+    "signature": ""
+  },
+  "frame": {
+    "name": "Mystic Island",
+    "version": "0.1.0",
+    "iconUrl": "https://mystic-island.yourland.network/favicon.ico",
+    "homeUrl": "https://mystic-island.yourland.network",
+    "splashImageUrl": "https://mystic-island.yourland.network/images/luma.png",
+    "splashBackgroundColor": "#0A1410",
+    "webhookUrl": "https://mystic-island.yourland.network/api/farcaster/webhook"
+  }
+}
