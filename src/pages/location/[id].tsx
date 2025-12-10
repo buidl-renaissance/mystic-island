@@ -240,7 +240,7 @@ const ChildLocationCard = styled(Link)`
 
 
 export default function LocationDetailPage() {
-  const { isSignedIn, authType } = useUnifiedAuth();
+  const { isSignedIn, authType, isLoading: authLoading } = useUnifiedAuth();
   const router = useRouter();
   const { id } = router.query;
   const [location, setLocation] = useState<Location | null>(null);
@@ -368,6 +368,31 @@ export default function LocationDetailPage() {
 
     fetchLocation();
   }, [id]);
+
+  // Show loading state while Farcaster auth is initializing (prevents flash of "sign in")
+  if (authLoading || (!isSignedIn && authType === 'farcaster')) {
+    return (
+      <>
+        <Head>
+          <title>Loading - Mystic Island</title>
+          <meta name="description" content="Loading location details" />
+        </Head>
+        <PageContainer>
+          <Container>
+            <BackLink href="/explore">← Back to Explore</BackLink>
+            <Card>
+              <div style={{ textAlign: "center", padding: "2rem" }}>
+                <LoadingSkeleton />
+                <p style={{ color: colors.textSecondary, marginTop: "1rem" }}>
+                  Authenticating...
+                </p>
+              </div>
+            </Card>
+          </Container>
+        </PageContainer>
+      </>
+    );
+  }
 
   if (!isSignedIn) {
     return (

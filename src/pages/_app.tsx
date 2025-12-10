@@ -2,6 +2,7 @@ import "@/styles/globals.css";
 import type { AppProps } from "next/app";
 import { useRouter } from "next/router";
 import Link from "next/link";
+import { useEffect } from "react";
 import { CDPReactProvider, type Config, type Theme } from "@coinbase/cdp-react";
 import { CDPHooksProvider } from "@coinbase/cdp-hooks";
 import { useAutoDeployWallet } from "@/hooks/useAutoDeployWallet";
@@ -114,7 +115,7 @@ function AppContent({ Component, pageProps }: { Component: AppProps['Component']
   
   // Use unified auth (prefers Farcaster, falls back to CDP)
   const { isSignedIn, authType } = useUnifiedAuth();
-  const { magicBalance, isLoading: statsLoading } = useUserStats();
+  const { magicBalance, isLoading: statsLoading, refetch: refetchMagicBalance } = useUserStats();
   const isOnboardingPage = router.pathname === '/onboarding';
   const isStartPage = router.pathname === '/start';
   const isDeployWalletPage = router.pathname === '/deploy-wallet';
@@ -144,6 +145,18 @@ function AppContent({ Component, pageProps }: { Component: AppProps['Component']
     if (num < 1000000) return `${(num / 1000).toFixed(2)}K`;
     return `${(num / 1000000).toFixed(2)}M`;
   };
+
+  // Listen for magic balance change events to trigger refresh
+  useEffect(() => {
+    const handleMagicBalanceChange = () => {
+      refetchMagicBalance();
+    };
+    
+    window.addEventListener('magicBalanceChanged', handleMagicBalanceChange);
+    return () => {
+      window.removeEventListener('magicBalanceChanged', handleMagicBalanceChange);
+    };
+  }, [refetchMagicBalance]);
 
   return (
     <>

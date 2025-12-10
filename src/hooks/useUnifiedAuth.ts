@@ -30,6 +30,19 @@ export function useUnifiedAuth(): UnifiedAuthState {
   const cdpEvmAddress = useEvmAddress();
   const cdpCurrentUser = useCurrentUser();
 
+  // If in Farcaster context and still loading, show loading state instead of "not signed in"
+  // This prevents the flash of "sign in" button for Farcaster users
+  if (isFarcasterContext && farcasterAuth.isLoading) {
+    return {
+      isSignedIn: false,
+      evmAddress: null,
+      currentUser: null,
+      authType: 'farcaster',
+      signOut: async () => {},
+      isLoading: true, // Indicate we're loading Farcaster auth
+    };
+  }
+
   // Use Farcaster auth if:
   // 1. We're in Farcaster context AND
   // 2. Farcaster auth is authenticated (not just loading)

@@ -205,9 +205,14 @@ export default function CollectMagicButton({ locationId, difficulty, onSuccess }
       setSuccess(true);
       setVisitState({ canVisit: false, timeRemaining: 24 * 60 * 60 * 1000 });
 
+      // Trigger refresh of magic balance
       if (onSuccess) {
         onSuccess();
       }
+      
+      // Also trigger a global refresh event for the top bar balance
+      // This ensures the balance updates immediately in the top bar
+      window.dispatchEvent(new CustomEvent('magicBalanceChanged'));
 
       // Clear success message after 5 seconds
       setTimeout(() => {

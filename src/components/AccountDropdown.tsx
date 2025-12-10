@@ -4,7 +4,7 @@ import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthButton } from "@coinbase/cdp-react";
 
 export default function AccountDropdown() {
-  const { isSignedIn, evmAddress, authType } = useUnifiedAuth();
+  const { isSignedIn, evmAddress, authType, isLoading: authLoading } = useUnifiedAuth();
   const [copied, setCopied] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -44,6 +44,22 @@ export default function AccountDropdown() {
       };
     }
   }, [showDropdown]);
+
+  // Show loading state while Farcaster auth is initializing (prevents flash of "sign in")
+  if (authLoading && authType === 'farcaster') {
+    return (
+      <div style={{ 
+        padding: "8px 16px", 
+        color: "#E8A855", 
+        fontSize: "0.9rem",
+        display: "flex",
+        alignItems: "center",
+        gap: "8px"
+      }}>
+        <span>Authenticating...</span>
+      </div>
+    );
+  }
 
   if (!isSignedIn) {
     // Show CDP AuthButton only for CDP auth (Farcaster auth is automatic)
