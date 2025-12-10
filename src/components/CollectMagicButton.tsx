@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
-import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { parseEther } from "viem";
 
 const colors = {
@@ -139,8 +139,7 @@ function formatTimeRemaining(ms: number): string {
 }
 
 export default function CollectMagicButton({ locationId, difficulty, onSuccess }: CollectMagicButtonProps) {
-  const { isSignedIn } = useIsSignedIn();
-  const { evmAddress } = useEvmAddress();
+  const { isSignedIn, evmAddress } = useUnifiedAuth();
   const [isCollecting, setIsCollecting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);

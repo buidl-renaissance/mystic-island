@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import styled, { keyframes } from "styled-components";
 import { Cinzel, Cormorant_Garamond, Inter } from "next/font/google";
-import { useIsSignedIn } from "@coinbase/cdp-hooks";
+import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthButton } from "@coinbase/cdp-react";
 import { createPublicClient, http } from "viem";
 import { CONTRACT_ADDRESSES, SAGA_CHAINLET, LOCATION_REGISTRY_ABI } from "@/utils/contracts";
@@ -240,7 +240,7 @@ const ChildLocationCard = styled(Link)`
 
 
 export default function LocationDetailPage() {
-  const { isSignedIn } = useIsSignedIn();
+  const { isSignedIn, authType } = useUnifiedAuth();
   const router = useRouter();
   const { id } = router.query;
   const [location, setLocation] = useState<Location | null>(null);
@@ -384,7 +384,11 @@ export default function LocationDetailPage() {
                 <p style={{ color: colors.textSecondary, marginBottom: "2rem" }}>
                   Please sign in to view location details
                 </p>
-                <AuthButton />
+                {authType === 'cdp' ? <AuthButton /> : (
+                  <p style={{ color: colors.textMuted, fontSize: "0.9rem" }}>
+                    Farcaster authentication required
+                  </p>
+                )}
               </div>
             </Card>
           </Container>
