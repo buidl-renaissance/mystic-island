@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { useX402Payment } from "@/hooks/useX402Payment";
-import { makePaidRequest, decodePaymentResponse } from "@/utils/x402Client";
 import { useIsSignedIn, useEvmAddress } from "@coinbase/cdp-hooks";
 import { AuthButton } from "@coinbase/cdp-react";
 import { useBalance } from "@/hooks/useBalance";
+import { useDirectPayment } from "@/hooks/useDirectPayment";
 
 interface PurchaseItemProps {
   itemId: string;
@@ -22,15 +21,16 @@ export default function PurchaseItem({
   onPurchaseSuccess,
   onPurchaseError,
 }: PurchaseItemProps) {
-  const fetchWithPayment = useX402Payment();
   const { isSignedIn } = useIsSignedIn();
   const { evmAddress } = useEvmAddress();
   const { balance, isLoading: isLoadingBalance, refresh: refreshBalance } = useBalance();
+  const { sendPayment } = useDirectPayment();
   const [isPurchasing, setIsPurchasing] = useState(false);
   const [purchaseStatus, setPurchaseStatus] = useState<
     "idle" | "processing" | "success" | "error"
   >("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [paymentStatus, setPaymentStatus] = useState<string>("");
   
   // Check if balance is sufficient
   const priceAmount = parseFloat(price);
@@ -45,7 +45,16 @@ export default function PurchaseItem({
 
     // Check balance before attempting purchase
     if (isInsufficientBalance) {
-      setErrorMessage(`Insufficient balance. You need $${price} USDC but only have $${balanceAmount.toFixed(2)} USDC.`);
+      setErrorMessage(`Insufficient balance. You need $${price} USDC but only have $${balanceAmount.toFixed(2)} USDC. Please add more USDC to your wallet.`);
+      setPurchaseStatus("error");
+      return;
+    }
+
+    // Refresh balance one more time before purchase to ensure we have the latest balance
+    await refreshBalance();
+    const latestBalance = balance ? parseFloat(balance) : 0;
+    if (latestBalance < priceAmount) {
+      setErrorMessage(`Insufficient balance. You need $${price} USDC but only have $${latestBalance.toFixed(2)} USDC. Please add more USDC to your wallet.`);
       setPurchaseStatus("error");
       return;
     }
@@ -56,20 +65,70 @@ export default function PurchaseItem({
 
     try {
       const balanceBefore = balance;
-      console.log("=== STARTING PURCHASE ===");
+      console.log("=== STARTING DIRECT PAYMENT PURCHASE ===");
       console.log("Item ID:", itemId);
       console.log("Price:", price, "USDC");
-      console.log("Balance before purchase:", balanceBefore, "USDC");
-      console.log("Embedded wallet address:", evmAddress);
-      
-      const response = await makePaidRequest(
-        fetchWithPayment,
-        apiEndpoint,
-        {
-          method: "POST",
-          body: JSON.stringify({ itemId }),
+      console.log("Balance before purchase (from useBalance hook):", balanceBefore, "USDC");
+      console.log("Embedded wallet address (from useEvmAddress):", evmAddress);
+      console.log("Balance amount (parsed):", balanceAmount);
+      console.log("Price amount (parsed):", priceAmount);
+      console.log("Is sufficient balance?", balanceAmount >= priceAmount);
+
+      if (!evmAddress) {
+        throw new Error("No wallet address available");
+      }
+
+      // Payment recipient address
+      const paymentRecipient = (process.env.NEXT_PUBLIC_PAYMENT_RECIPIENT_ADDRESS || "0x4200000000000000000000000000000000000006") as `0x${string}`;
+
+      // Send direct USDC payment
+      setPaymentStatus("Sending payment...");
+      let transactionHash: `0x${string}`;
+      try {
+        transactionHash = await sendPayment(
+          paymentRecipient,
+          price,
+          (status) => setPaymentStatus(status)
+        );
+      } catch (paymentError) {
+        // Handle payment-specific errors (like insufficient balance)
+        if (paymentError instanceof Error) {
+          if (paymentError.message.includes("Insufficient") || paymentError.message.includes("balance")) {
+            setErrorMessage(paymentError.message);
+            setPurchaseStatus("error");
+            setIsPurchasing(false);
+            if (onPurchaseError) {
+              onPurchaseError(paymentError);
+            }
+            return;
+          }
         }
-      );
+        throw paymentError; // Re-throw if it's not a balance error
+      }
+
+      console.log("✅ Payment transaction sent:", transactionHash);
+      console.log("View on Base Sepolia Explorer:", 
+        `https://sepolia.basescan.org/tx/${transactionHash}`);
+
+      // Now call the API with the transaction hash
+      setPaymentStatus("Verifying payment...");
+      
+      // Check if the hash has the UserOperation prefix
+      const isUserOpHash = transactionHash.startsWith('uo:');
+      const actualHash = isUserOpHash ? transactionHash.substring(3) : transactionHash;
+      
+      const response = await fetch(apiEndpoint, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          itemId,
+          transactionHash: !isUserOpHash ? actualHash : undefined,
+          userOperationHash: isUserOpHash ? actualHash : undefined,
+          fromAddress: evmAddress,
+        }),
+      });
 
       console.log("Purchase response received:", {
         status: response.status,
@@ -77,150 +136,31 @@ export default function PurchaseItem({
         headers: Object.fromEntries(response.headers.entries()),
       });
 
-      if (response.ok) {
-        const data = await response.json();
-        const paymentResponse = decodePaymentResponse(
-          response.headers.get("x-payment-response")
-        );
+      const data = await response.json();
 
+      if (response.ok && data.success) {
         setPurchaseStatus("success");
+        setPaymentStatus("Payment confirmed!");
         console.log("Purchase successful:", data);
-        
-        // ===== DETAILED PAYMENT DEBUGGING =====
-        console.log("=== PAYMENT DEBUGGING ===");
-        console.log("Payment response full object:", JSON.stringify(paymentResponse, null, 2));
-        console.log("Payment from address:", paymentResponse?.from);
-        console.log("Payment to address:", paymentResponse?.to);
-        console.log("Payment transaction hash:", paymentResponse?.txHash);
-        console.log("Payment amount:", paymentResponse?.amount);
-        console.log("Payment facilitator:", paymentResponse?.facilitator);
-        console.log("Payment scheme:", paymentResponse?.scheme);
-        console.log("Payment network:", paymentResponse?.network);
-        console.log("Embedded wallet address:", evmAddress);
-        
-        // Verify payment address matches embedded wallet
-        if (paymentResponse?.from && evmAddress) {
-          const paymentFrom = paymentResponse.from.toLowerCase();
-          const walletAddress = evmAddress.toLowerCase();
-          const addressesMatch = paymentFrom === walletAddress;
-          
-          console.log("=== ADDRESS VERIFICATION ===");
-          console.log("Payment from:", paymentFrom);
-          console.log("Wallet address:", walletAddress);
-          console.log("Addresses match:", addressesMatch);
-          
-          if (!addressesMatch) {
-            console.warn("⚠️ WARNING: Payment is NOT from the embedded wallet!");
-            console.warn("This could mean:");
-            console.warn("1. Payment is going through a facilitator");
-            console.warn("2. Payment is using a different address");
-            console.warn("3. Balance won't decrement from embedded wallet");
-          } else {
-            console.log("✅ Payment is from embedded wallet - balance should decrement");
-          }
-        }
-        
-        // Check for transaction hash
-        if (paymentResponse?.txHash) {
-          console.log("=== TRANSACTION INFO ===");
-          console.log("Transaction hash:", paymentResponse.txHash);
-          console.log("View on Base Sepolia Explorer:", 
-            `https://sepolia.basescan.org/tx/${paymentResponse.txHash}`);
-        } else {
-          console.warn("⚠️ No transaction hash found - payment might be off-chain or batched");
-        }
-        
-        console.log("=== END PAYMENT DEBUGGING ===");
 
-        // Refresh balance after successful payment with retries
-        // x402 payments might use facilitators or batching, so we need to wait longer
-        let retries = 0;
-        const maxRetries = 5;
-        const checkBalance = async () => {
-          console.log(`Refreshing balance (attempt ${retries + 1}/${maxRetries})...`);
-          const balanceBeforeRefresh = balance;
+        // Refresh balance after successful payment
+        setTimeout(async () => {
           await refreshBalance();
-          
-          // Note: balance state might not update immediately, so we'll check in the next attempt
-          if (retries === 0) {
-            console.log("Balance before refresh:", balanceBeforeRefresh, "USDC");
-          }
-          
-          retries++;
-          if (retries < maxRetries) {
-            setTimeout(checkBalance, 3000); // Check every 3 seconds
-          } else {
-            console.log("=== BALANCE CHECK COMPLETE ===");
-            console.log("Final balance:", balance, "USDC");
-            console.log("Balance before purchase:", balanceBefore, "USDC");
-            const balanceDiff = balanceBefore ? parseFloat(balanceBefore) - (balance ? parseFloat(balance) : 0) : 0;
-            console.log("Balance difference:", balanceDiff, "USDC");
-            if (balanceDiff === 0) {
-              console.warn("⚠️ Balance did not change - payment may not have been deducted from wallet");
-            } else {
-              console.log("✅ Balance changed by:", balanceDiff, "USDC");
-            }
-          }
-        };
-        
-        // Start checking balance after 5 seconds (to allow for transaction confirmation)
-        setTimeout(checkBalance, 5000);
+        }, 2000);
 
         if (onPurchaseSuccess) {
           onPurchaseSuccess(data);
         }
-      } else if (response.status === 402) {
-        // 402 Payment Required - could be initial payment request or error
-        try {
-          const errorData = await response.json();
-          
-          // Check if it's an undeployed wallet error
-          if (errorData.errorCode === "UNDEPLOYED_WALLET" || 
-              errorData.error?.includes("not deployed") ||
-              errorData.error?.includes("undeployed")) {
-            setErrorMessage(
-              "Your wallet needs to be deployed first. Please make a small transaction (e.g., request funds from the faucet) to deploy your wallet, then try again."
-            );
-            setPurchaseStatus("error");
-            setIsPurchasing(false);
-            if (onPurchaseError) {
-              onPurchaseError(new Error("Wallet not deployed"));
-            }
-            return;
-          }
-          
-          // Otherwise, it's a normal 402 - keep the button in loading state
-          // The payment flow should be handled by x402-fetch automatically
-          console.log("Payment required - keeping button in loading state");
-          return; // Exit early, keep isPurchasing true
-        } catch {
-          // If we can't parse the error, treat it as a normal 402
-          console.log("Payment required - keeping button in loading state");
-          return;
-        }
       } else {
-        // Try to get error message from response body
-        let errorText = "";
-        try {
-          const responseText = await response.text();
-          errorText = responseText;
-          
-          // Try to parse as JSON
-          try {
-            const errorJson = JSON.parse(responseText);
-            if (errorJson.error) {
-              errorText = errorJson.error;
-            } else if (errorJson.message) {
-              errorText = errorJson.message;
-            }
-          } catch {
-            // Not JSON, use text as-is
-          }
-        } catch {
-          errorText = `Request failed with status ${response.status}`;
-        }
+        // Handle error response
+        setPurchaseStatus("error");
+        const errorMessage = data.error || `Purchase failed with status ${response.status}`;
+        setErrorMessage(errorMessage);
+        console.error("Purchase failed:", data);
         
-        throw new Error(errorText || `Purchase failed with status ${response.status}`);
+        if (onPurchaseError) {
+          onPurchaseError(new Error(errorMessage));
+        }
       }
     } catch (error) {
       let errorMsg = "An unexpected error occurred. Please try again.";
@@ -282,6 +222,9 @@ export default function PurchaseItem({
           return; // Exit early, keep button in loading state
         } else if (originalMessage.includes("network") || originalMessage.includes("Network")) {
           errorMsg = "Network error. Please check your connection and try again.";
+        } else if (originalMessage.includes("Insufficient ETH") || originalMessage.includes("insufficient ETH")) {
+          // Handle insufficient ETH for gas (from x402 payments with smart wallets)
+          errorMsg = originalMessage; // Use the detailed message from the hook
         } else if (originalMessage.includes("insufficient") || originalMessage.includes("balance")) {
           errorMsg = "Insufficient balance. Please add USDC to your wallet.";
         } else if (originalMessage.includes("scheme") || originalMessage.includes("network") || originalMessage.includes("payTo")) {
@@ -438,7 +381,24 @@ export default function PurchaseItem({
         </div>
       )}
 
-      {purchaseStatus === "processing" && (
+      {paymentStatus && (
+        <div
+          style={{
+            marginTop: "12px",
+            padding: "12px",
+            backgroundColor: "#e3f2fd",
+            border: "1px solid #2196f3",
+            borderRadius: "4px",
+            textAlign: "center",
+          }}
+        >
+          <p style={{ margin: 0, color: "#1976d2", fontSize: "14px" }}>
+            {paymentStatus}
+          </p>
+        </div>
+      )}
+
+      {purchaseStatus === "processing" && !paymentStatus && (
         <div
           style={{
             marginTop: "12px",
