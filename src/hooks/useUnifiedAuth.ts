@@ -56,8 +56,9 @@ export function useUnifiedAuth(): UnifiedAuthState {
   const cdpAddressValue = (cdpEvmAddress as any)?.evmAddress ?? 
                          (typeof cdpEvmAddress === 'string' ? cdpEvmAddress : null);
   
-  // Get evmAccounts from currentUser
-  const cdpEvmAccounts = cdpCurrentUser?.evmAccounts || [];
+  // Get evmAccounts from currentUser - useCurrentUser returns { currentUser: User | null }
+  const cdpUser = cdpCurrentUser?.currentUser;
+  const cdpEvmAccounts = cdpUser?.evmAccounts || [];
   
   // Use evmAddress from hook, or fall back to first evmAccount
   const finalAddress = cdpAddressValue || 
@@ -67,10 +68,16 @@ export function useUnifiedAuth(): UnifiedAuthState {
                             : (cdpEvmAccounts[0] as any)?.address)
                         : null);
 
+  // Transform CDP user to match our unified interface
+  const transformedUser = cdpUser ? {
+    ...cdpUser,
+    evmAccounts: (cdpUser.evmAccounts || []).map(addr => typeof addr === 'string' ? addr : String(addr)),
+  } : null;
+
   return {
     isSignedIn: cdpIsSignedIn.isSignedIn || false,
     evmAddress: finalAddress,
-    currentUser: cdpCurrentUser?.currentUser || cdpCurrentUser || null,
+    currentUser: transformedUser,
     authType: 'cdp',
     signOut: async () => {
       // CDP sign out would be handled by CDP components

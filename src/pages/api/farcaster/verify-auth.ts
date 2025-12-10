@@ -31,8 +31,8 @@ export default async function handler(
     const payload = await client.verifyJwt({ token, domain });
     
     // Extract FID from the token payload
-    // The FID is in the 'sub' field
-    const fid = payload.sub ? parseInt(payload.sub) : null;
+    // The FID is in the 'sub' field (may be string or number)
+    const fid = payload.sub ? (typeof payload.sub === 'string' ? parseInt(payload.sub) : payload.sub) : null;
 
     if (!fid) {
       return res.status(400).json({ error: "Invalid token: FID not found" });

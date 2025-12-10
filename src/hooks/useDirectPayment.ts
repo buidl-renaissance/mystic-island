@@ -128,23 +128,23 @@ export function useDirectPayment() {
         throw new Error("No embedded wallet available. Please sign in.");
       }
       
-      // Find the evmAccount that matches the evmAddress
+      // Find the evmAccount that matches the walletAddress
       // evmAccount might be a string (address) or an object with an address property
       let evmAccount = currentUser.evmAccounts.find((account) => {
         if (typeof account === 'string') {
-          return account.toLowerCase() === evmAddress.toLowerCase();
+          return account.toLowerCase() === accountAddress.toLowerCase();
         }
-        return (account as { address?: string }).address?.toLowerCase() === evmAddress.toLowerCase();
+        return (account as { address?: string }).address?.toLowerCase() === accountAddress.toLowerCase();
       });
       
       // Fallback to first account if no match found
       if (!evmAccount) {
         evmAccount = currentUser.evmAccounts[0];
-        console.warn("⚠️ Could not find matching evmAccount for evmAddress, using first account");
+        console.warn("⚠️ Could not find matching evmAccount for walletAddress, using first account");
       }
       
       console.log("=== ADDRESS VERIFICATION ===");
-      console.log("evmAddress from useEvmAddress():", evmAddress);
+      console.log("walletAddress from unified auth:", walletAddress);
       console.log("evmAccount found:", evmAccount);
       console.log("Using accountAddress for transaction:", accountAddress);
       
@@ -153,10 +153,10 @@ export function useDirectPayment() {
         ? evmAccount 
         : (evmAccount as { address?: string }).address;
       
-      if (evmAccountAddress?.toLowerCase() !== evmAddress.toLowerCase()) {
-        console.warn("⚠️ WARNING: evmAccount address doesn't match evmAddress!");
+      if (evmAccountAddress?.toLowerCase() !== accountAddress.toLowerCase()) {
+        console.warn("⚠️ WARNING: evmAccount address doesn't match walletAddress!");
         console.warn("  evmAccount address:", evmAccountAddress);
-        console.warn("  evmAddress:", evmAddress);
+        console.warn("  walletAddress:", walletAddress);
         console.warn("  This might cause balance/transaction mismatches");
       }
 
