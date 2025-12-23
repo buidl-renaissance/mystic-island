@@ -14,139 +14,111 @@ interface FarcasterAuthState {
 }
 
 /**
- * Hook for Farcaster Quick Auth and wallet access
- * Handles authentication via Farcaster SDK and provides wallet address
+ * Hook for Farcaster authentication and wallet access
+ * Loads user profile immediately from context (fast)
+ * Only performs Quick Auth token verification when needed (for API calls)
  */
 export function useFarcasterAuth() {
-  const { isFarcasterContext, sdk } = useFarcasterContext();
+  const { isFarcasterContext, sdk, user, isLoading: contextLoading } = useFarcasterContext();
   const [authState, setAuthState] = useState<FarcasterAuthState>({
     isAuthenticated: false,
-    fid: null,
+    fid: user?.fid || null,
     walletAddress: null,
     token: null,
-    username: null,
-    displayName: null,
-    pfpUrl: null,
+    username: user?.username || null,
+    displayName: user?.displayName || null,
+    pfpUrl: user?.pfpUrl || null,
     isLoading: true,
     error: null,
   });
 
-  const authenticate = useCallback(async () => {
+  // Load wallet address (fast, no auth needed)
+  const loadWallet = useCallback(async () => {
     if (!isFarcasterContext || !sdk) {
       setAuthState(prev => ({
         ...prev,
         isLoading: false,
-        error: null, // Don't set error - just not in Farcaster context
+        error: null,
       }));
       return;
     }
 
-    // Get context and user details
-    let context: any = null;
-    let user: any = null;
-    
     try {
-      context = await sdk.context;
-      if (!context) {
+      // Get wallet address via EIP-1193 provider (fast, no auth needed)
+      if (!sdk.wallet || typeof sdk.wallet.getEthereumProvider !== 'function') {
         setAuthState(prev => ({
           ...prev,
           isLoading: false,
-          error: null, // Not an error, just not in Farcaster context
+          error: null, // Wallet not available, but that's okay
         }));
         return;
       }
       
-      // Get user details from context
-      user = context.user;
-    } catch (contextError) {
-      setAuthState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: null, // Not an error, just not in Farcaster context
-      }));
-      return;
-    }
-
-    // Check if quickAuth is available
-    if (!sdk.quickAuth || typeof sdk.quickAuth.getToken !== 'function') {
-      setAuthState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: new Error('Farcaster Quick Auth not available'),
-      }));
-      return;
-    }
-
-    try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }));
-
-      // Get JWT token via Quick Auth
-      const tokenResult = await sdk.quickAuth.getToken();
-      
-      // Handle both { token } and direct token response
-      const token = tokenResult?.token || tokenResult;
-      
-      if (!token || typeof token !== 'string') {
-        throw new Error('Invalid token received from Farcaster');
-      }
-      
-      // Verify token and extract FID (optional - can also verify on backend)
-      // For now, we'll just store the token and get wallet
-      
-      // Get wallet address via EIP-1193 provider
-      // Check if wallet API is available
-      if (!sdk.wallet || typeof sdk.wallet.getEthereumProvider !== 'function') {
-        throw new Error('Farcaster wallet API not available');
-      }
-      
       const provider = await sdk.wallet.getEthereumProvider();
       if (!provider) {
-        throw new Error('Failed to get Ethereum provider from Farcaster');
+        setAuthState(prev => ({
+          ...prev,
+          isLoading: false,
+          error: null,
+        }));
+        return;
       }
       
       const accounts = await provider.request({ method: 'eth_accounts' });
       const walletAddress = accounts?.[0] || null;
 
-      if (!walletAddress) {
-        throw new Error('No wallet connected in Farcaster');
-      }
-
-      // Extract FID from token (basic parsing - full verification should be on backend)
-      // Prefer FID from user context if available, otherwise from token
-      let fid: number | null = user?.fid || null;
-      if (!fid) {
-        try {
-          const payload = JSON.parse(atob(token.split('.')[1]));
-          fid = payload.sub ? (typeof payload.sub === 'string' ? parseInt(payload.sub) : payload.sub) : null;
-        } catch (e) {
-          console.warn('Could not extract FID from token:', e);
-        }
-      }
-
-      // Get user profile details from context
-      const username = user?.username || null;
-      const displayName = user?.displayName || null;
-      const pfpUrl = user?.pfpUrl || null;
-
-      setAuthState({
-        isAuthenticated: true,
-        fid,
-        walletAddress: walletAddress.toLowerCase(),
-        token,
-        username,
-        displayName,
-        pfpUrl,
-        isLoading: false,
-        error: null,
-      });
-    } catch (error) {
-      console.error('Farcaster authentication error:', error);
+      // Update state with wallet address and user profile from context
       setAuthState(prev => ({
         ...prev,
-        isAuthenticated: false,
+        walletAddress: walletAddress ? walletAddress.toLowerCase() : null,
+        fid: user?.fid || prev.fid,
+        username: user?.username || prev.username,
+        displayName: user?.displayName || prev.displayName,
+        pfpUrl: user?.pfpUrl || prev.pfpUrl,
+        isAuthenticated: !!walletAddress, // Authenticated if we have wallet
         isLoading: false,
-        error: error instanceof Error ? error : new Error('Authentication failed'),
       }));
+    } catch (error) {
+      console.error('Error loading Farcaster wallet:', error);
+      setAuthState(prev => ({
+        ...prev,
+        isLoading: false,
+        error: null, // Don't treat as error - might just not be available
+      }));
+    }
+  }, [isFarcasterContext, sdk, user]);
+
+  // Get authentication token (only when needed for API calls)
+  const getAuthToken = useCallback(async (): Promise<string | null> => {
+    if (!isFarcasterContext || !sdk) {
+      return null;
+    }
+
+    // Check if quickAuth is available
+    if (!sdk.quickAuth || typeof sdk.quickAuth.getToken !== 'function') {
+      console.warn('Farcaster Quick Auth not available');
+      return null;
+    }
+
+    try {
+      // Get JWT token via Quick Auth (for API verification)
+      const tokenResult = await sdk.quickAuth.getToken();
+      const token = tokenResult?.token || tokenResult;
+      
+      if (!token || typeof token !== 'string') {
+        return null;
+      }
+
+      // Store token in state
+      setAuthState(prev => ({
+        ...prev,
+        token,
+      }));
+
+      return token;
+    } catch (error) {
+      console.error('Error getting Farcaster auth token:', error);
+      return null;
     }
   }, [isFarcasterContext, sdk]);
 
@@ -164,21 +136,34 @@ export function useFarcasterAuth() {
     });
   }, []);
 
-  // Auto-authenticate when in Farcaster context
+  // Update user profile when context user changes
   useEffect(() => {
-    if (isFarcasterContext && sdk) {
-      authenticate();
-    } else {
+    if (user) {
+      setAuthState(prev => ({
+        ...prev,
+        fid: user.fid,
+        username: user.username,
+        displayName: user.displayName,
+        pfpUrl: user.pfpUrl,
+      }));
+    }
+  }, [user]);
+
+  // Load wallet address when in Farcaster context (fast, no auth needed)
+  useEffect(() => {
+    if (isFarcasterContext && sdk && !contextLoading) {
+      loadWallet();
+    } else if (!contextLoading) {
       setAuthState(prev => ({
         ...prev,
         isLoading: false,
       }));
     }
-  }, [isFarcasterContext, sdk, authenticate]);
+  }, [isFarcasterContext, sdk, contextLoading, loadWallet]);
 
   return {
     ...authState,
-    authenticate,
+    getAuthToken, // Expose function to get token when needed
     signOut,
   };
 }

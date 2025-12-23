@@ -46,24 +46,40 @@ export function useUnifiedAuth(): UnifiedAuthState {
     };
   }
 
-  // Use Farcaster auth if:
-  // 1. We're in Farcaster context AND
-  // 2. Farcaster auth is authenticated (not just loading)
-  if (isFarcasterContext && farcasterAuth.isAuthenticated && farcasterAuth.walletAddress) {
-    return {
-      isSignedIn: true,
-      evmAddress: farcasterAuth.walletAddress,
-      currentUser: {
-        fid: farcasterAuth.fid || undefined,
-        username: farcasterAuth.username || undefined,
-        displayName: farcasterAuth.displayName || undefined,
-        pfpUrl: farcasterAuth.pfpUrl || undefined,
-        evmAccounts: farcasterAuth.walletAddress ? [farcasterAuth.walletAddress] : [],
-      },
-      authType: 'farcaster',
-      signOut: farcasterAuth.signOut,
-      isLoading: false,
-    };
+  // Use Farcaster auth if we're in Farcaster context
+  // User profile loads immediately from context (fast)
+  // Wallet address loads separately (also fast, no auth needed)
+  // We can show user profile even while wallet is loading
+  if (isFarcasterContext) {
+    // If we have user profile or wallet, use Farcaster auth
+    if (farcasterAuth.fid || farcasterAuth.walletAddress) {
+      return {
+        isSignedIn: !!farcasterAuth.walletAddress, // Signed in if we have wallet
+        evmAddress: farcasterAuth.walletAddress,
+        currentUser: {
+          fid: farcasterAuth.fid || undefined,
+          username: farcasterAuth.username || undefined,
+          displayName: farcasterAuth.displayName || undefined,
+          pfpUrl: farcasterAuth.pfpUrl || undefined,
+          evmAccounts: farcasterAuth.walletAddress ? [farcasterAuth.walletAddress] : [],
+        },
+        authType: 'farcaster',
+        signOut: farcasterAuth.signOut,
+        isLoading: farcasterAuth.isLoading,
+      };
+    }
+    
+    // If still loading context, show loading state
+    if (farcasterAuth.isLoading) {
+      return {
+        isSignedIn: false,
+        evmAddress: null,
+        currentUser: null,
+        authType: 'farcaster',
+        signOut: async () => {},
+        isLoading: true,
+      };
+    }
   }
 
   // If not in Farcaster context OR Farcaster auth failed/not available,
