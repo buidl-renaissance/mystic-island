@@ -4,7 +4,7 @@ import { useUnifiedAuth } from "@/hooks/useUnifiedAuth";
 import { AuthButton } from "@coinbase/cdp-react";
 
 export default function AccountDropdown() {
-  const { isSignedIn, evmAddress, authType, isLoading: authLoading } = useUnifiedAuth();
+  const { isSignedIn, evmAddress, authType, currentUser, isLoading: authLoading } = useUnifiedAuth();
   const [copied, setCopied] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -117,24 +117,30 @@ export default function AccountDropdown() {
             color: "#0A1410",
             fontSize: "14px",
             fontWeight: "600",
+            overflow: "hidden",
+            backgroundImage: currentUser?.pfpUrl ? `url(${currentUser.pfpUrl})` : undefined,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
           }}
         >
-          {evmAddress ? (
-            evmAddress.slice(2, 4).toUpperCase()
-          ) : (
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            >
-              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
-              <circle cx="12" cy="7" r="4"></circle>
-            </svg>
+          {currentUser?.pfpUrl ? null : (
+            evmAddress ? (
+              evmAddress.slice(2, 4).toUpperCase()
+            ) : (
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                <circle cx="12" cy="7" r="4"></circle>
+              </svg>
+            )
           )}
         </div>
         <svg
@@ -218,31 +224,74 @@ export default function AccountDropdown() {
                     fontSize: "14px",
                     fontWeight: "600",
                     flexShrink: 0,
+                    overflow: "hidden",
+                    backgroundImage: currentUser?.pfpUrl ? `url(${currentUser.pfpUrl})` : undefined,
+                    backgroundSize: "cover",
+                    backgroundPosition: "center",
                   }}
                 >
-                  {evmAddress.slice(2, 4).toUpperCase()}
+                  {!currentUser?.pfpUrl && evmAddress.slice(2, 4).toUpperCase()}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: "13px",
-                      fontFamily: "monospace",
-                      color: "#F5F5F5",
-                      wordBreak: "break-all",
-                      lineHeight: "1.4",
-                    }}
-                  >
-                    {evmAddress.slice(0, 6)}...{evmAddress.slice(-4)}
-                  </div>
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      color: "#D0D0D0",
-                      marginTop: "4px",
-                    }}
-                  >
-                    Wallet Address
-                  </div>
+                  {currentUser?.displayName || currentUser?.username ? (
+                    <>
+                      <div
+                        style={{
+                          fontSize: "14px",
+                          fontWeight: "600",
+                          color: "#F5F5F5",
+                          lineHeight: "1.4",
+                        }}
+                      >
+                        {currentUser.displayName || currentUser.username}
+                      </div>
+                      {currentUser.username && currentUser.displayName && (
+                        <div
+                          style={{
+                            fontSize: "12px",
+                            color: "#D0D0D0",
+                            marginTop: "2px",
+                          }}
+                        >
+                          @{currentUser.username}
+                        </div>
+                      )}
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          fontFamily: "monospace",
+                          color: "#A0A0A0",
+                          marginTop: "4px",
+                          wordBreak: "break-all",
+                        }}
+                      >
+                        {evmAddress.slice(0, 6)}...{evmAddress.slice(-4)}
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div
+                        style={{
+                          fontSize: "13px",
+                          fontFamily: "monospace",
+                          color: "#F5F5F5",
+                          wordBreak: "break-all",
+                          lineHeight: "1.4",
+                        }}
+                      >
+                        {evmAddress.slice(0, 6)}...{evmAddress.slice(-4)}
+                      </div>
+                      <div
+                        style={{
+                          fontSize: "11px",
+                          color: "#D0D0D0",
+                          marginTop: "4px",
+                        }}
+                      >
+                        Wallet Address
+                      </div>
+                    </>
+                  )}
                 </div>
                 <button
                   onClick={copyAddress}

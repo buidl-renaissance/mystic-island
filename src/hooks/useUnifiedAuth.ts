@@ -9,6 +9,9 @@ interface UnifiedAuthState {
   evmAddress: string | null;
   currentUser: {
     fid?: number;
+    username?: string;
+    displayName?: string;
+    pfpUrl?: string;
     evmAccounts: string[];
     [key: string]: any;
   } | null;
@@ -52,6 +55,9 @@ export function useUnifiedAuth(): UnifiedAuthState {
       evmAddress: farcasterAuth.walletAddress,
       currentUser: {
         fid: farcasterAuth.fid || undefined,
+        username: farcasterAuth.username || undefined,
+        displayName: farcasterAuth.displayName || undefined,
+        pfpUrl: farcasterAuth.pfpUrl || undefined,
         evmAccounts: farcasterAuth.walletAddress ? [farcasterAuth.walletAddress] : [],
       },
       authType: 'farcaster',

@@ -6,6 +6,9 @@ interface FarcasterAuthState {
   fid: number | null;
   walletAddress: string | null;
   token: string | null;
+  username: string | null;
+  displayName: string | null;
+  pfpUrl: string | null;
   isLoading: boolean;
   error: Error | null;
 }
@@ -21,6 +24,9 @@ export function useFarcasterAuth() {
     fid: null,
     walletAddress: null,
     token: null,
+    username: null,
+    displayName: null,
+    pfpUrl: null,
     isLoading: true,
     error: null,
   });
@@ -35,9 +41,12 @@ export function useFarcasterAuth() {
       return;
     }
 
-    // Double-check context before proceeding
+    // Get context and user details
+    let context: any = null;
+    let user: any = null;
+    
     try {
-      const context = await sdk.context;
+      context = await sdk.context;
       if (!context) {
         setAuthState(prev => ({
           ...prev,
@@ -46,6 +55,9 @@ export function useFarcasterAuth() {
         }));
         return;
       }
+      
+      // Get user details from context
+      user = context.user;
     } catch (contextError) {
       setAuthState(prev => ({
         ...prev,
@@ -100,19 +112,30 @@ export function useFarcasterAuth() {
       }
 
       // Extract FID from token (basic parsing - full verification should be on backend)
-      let fid: number | null = null;
-      try {
-        const payload = JSON.parse(atob(token.split('.')[1]));
-        fid = payload.sub ? parseInt(payload.sub) : null;
-      } catch (e) {
-        console.warn('Could not extract FID from token:', e);
+      // Prefer FID from user context if available, otherwise from token
+      let fid: number | null = user?.fid || null;
+      if (!fid) {
+        try {
+          const payload = JSON.parse(atob(token.split('.')[1]));
+          fid = payload.sub ? (typeof payload.sub === 'string' ? parseInt(payload.sub) : payload.sub) : null;
+        } catch (e) {
+          console.warn('Could not extract FID from token:', e);
+        }
       }
+
+      // Get user profile details from context
+      const username = user?.username || null;
+      const displayName = user?.displayName || null;
+      const pfpUrl = user?.pfpUrl || null;
 
       setAuthState({
         isAuthenticated: true,
         fid,
         walletAddress: walletAddress.toLowerCase(),
         token,
+        username,
+        displayName,
+        pfpUrl,
         isLoading: false,
         error: null,
       });
@@ -133,6 +156,9 @@ export function useFarcasterAuth() {
       fid: null,
       walletAddress: null,
       token: null,
+      username: null,
+      displayName: null,
+      pfpUrl: null,
       isLoading: false,
       error: null,
     });
